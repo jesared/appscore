@@ -291,7 +291,7 @@ function PartyCard({
               Supprimer definitivement cette partie ?
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              "{party.name}" sera retiree de la base et ne pourra pas etre restauree.
+              &quot;{party.name}&quot; sera retiree de la base et ne pourra pas etre restauree.
             </p>
             <div className="mt-3 flex gap-2">
               <Button
@@ -343,10 +343,11 @@ export function FlowersPartyStoragePanel({
   const activeParties = savedParties.filter((party) => party.isActive);
   const inactiveParties = savedParties.filter((party) => !party.isActive);
   const currentParty = savedParties.find((party) => party.id === activePartyId);
+  const hasCurrentParty = currentParty !== undefined;
 
   useEffect(() => {
-    setIsLibraryOpen(!currentParty);
-  }, [currentParty?.id]);
+    setIsLibraryOpen(!hasCurrentParty);
+  }, [hasCurrentParty]);
 
   return (
     <Card>

@@ -12,6 +12,16 @@ type TransactionClient = Omit<
   "$connect" | "$disconnect" | "$extends" | "$on" | "$transaction" | "$use"
 >;
 
+type PersistedPartyPlayer = {
+  id: string;
+  clientId: string;
+};
+
+type PersistedPartyRound = {
+  id: string;
+  clientId: string;
+};
+
 function toPartySummary(party: {
   id: string;
   name: string;
@@ -161,7 +171,7 @@ export async function saveFlowersParty(input: SaveFlowersPartyInput): Promise<Fl
       where: { partyId: savedParty.id },
     });
 
-    const players = await Promise.all(
+    const players: PersistedPartyPlayer[] = await Promise.all(
       input.players.map((player, index) =>
         tx.flowersPartyPlayer.create({
           data: {
@@ -174,7 +184,7 @@ export async function saveFlowersParty(input: SaveFlowersPartyInput): Promise<Fl
       ),
     );
 
-    const rounds = await Promise.all(
+    const rounds: PersistedPartyRound[] = await Promise.all(
       input.rounds.map((round, index) =>
         tx.flowersPartyRound.create({
           data: {
@@ -187,8 +197,12 @@ export async function saveFlowersParty(input: SaveFlowersPartyInput): Promise<Fl
       ),
     );
 
-    const playerIdsByClientId = new Map(players.map((player) => [player.clientId, player.id]));
-    const roundIdsByClientId = new Map(rounds.map((round) => [round.clientId, round.id]));
+    const playerIdsByClientId = new Map(
+      players.map((player: PersistedPartyPlayer) => [player.clientId, player.id]),
+    );
+    const roundIdsByClientId = new Map(
+      rounds.map((round: PersistedPartyRound) => [round.clientId, round.id]),
+    );
 
     const scores = input.players.flatMap((player) =>
       input.rounds.map((round) => {

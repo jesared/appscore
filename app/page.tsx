@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
+import { FlowersPartyStoragePanel } from "@/components/flowers/flowers-party-storage-panel";
 import { FlowersRankingList } from "@/components/flowers/flowers-ranking-list";
 import { FlowersScoreTable } from "@/components/flowers/flowers-score-table";
 import { AddPlayerForm } from "@/components/players/add-player-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  buildFlowersRanking,
-  createEmptyFlowersScoreSheet,
-} from "@/lib/flowers-score";
+import { buildFlowersRanking, createEmptyFlowersScoreSheet } from "@/lib/flowers-score";
 import { createEntityId } from "@/lib/score/ids";
+import type { FlowersPartySnapshot, FlowersPartySummary } from "@/types/flowers-party";
 import type { Player } from "@/types/player";
 import type {
   FlowersRound,
@@ -33,10 +32,129 @@ function renameRounds(rounds: FlowersRound[]): FlowersRound[] {
   }));
 }
 
+function createInitialRounds() {
+  return [createRound(1)];
+}
+
+type FlowersPartiesResponse = {
+  parties: FlowersPartySummary[];
+};
+
+type FlowersPartyResponse = {
+  party: FlowersPartySnapshot;
+};
+
 export default function HomePage() {
+  const [partyId, setPartyId] = useState<string | undefined>();
+  const [partyName, setPartyName] = useState("Partie Flowers");
   const [players, setPlayers] = useState<Player[]>([]);
-  const [rounds, setRounds] = useState<FlowersRound[]>(() => [createRound(1)]);
+  const [rounds, setRounds] = useState<FlowersRound[]>(() => createInitialRounds());
   const [scoreSheets, setScoreSheets] = useState<FlowersScoreSheetsByPlayer>({});
+  const [savedParties, setSavedParties] = useState<FlowersPartySummary[]>([]);
+  const [isLoadingParty, setIsLoadingParty] = useState(false);
+  const [isSavingParty, setIsSavingParty] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string>();
+
+  async function refreshSavedParties() {
+    const response = await fetch("/api/flowers-parties", {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error("Impossible de charger les parties sauvegardees.");
+    }
+
+    const payload = (await response.json()) as FlowersPartiesResponse;
+    setSavedParties(payload.parties);
+  }
+
+  function applyPartySnapshot(party: FlowersPartySnapshot) {
+    setPartyId(party.id);
+    setPartyName(party.name);
+    setPlayers(party.players);
+    setRounds(party.rounds);
+    setScoreSheets(party.scoreSheets);
+  }
+
+  function resetParty() {
+    setPartyId(undefined);
+    setPartyName("Partie Flowers");
+    setPlayers([]);
+    setRounds(createInitialRounds());
+    setScoreSheets({});
+    setStatusMessage("Nouvelle partie prete.");
+  }
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        await refreshSavedParties();
+      } catch (error) {
+        setStatusMessage(
+          error instanceof Error ? error.message : "Chargement initial impossible.",
+        );
+      }
+    })();
+  }, []);
+
+  async function handleLoadParty(nextPartyId: string) {
+    setIsLoadingParty(true);
+    setStatusMessage(undefined);
+
+    try {
+      const response = await fetch(`/api/flowers-parties/${nextPartyId}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("Impossible de charger cette partie.");
+      }
+
+      const payload = (await response.json()) as FlowersPartyResponse;
+      applyPartySnapshot(payload.party);
+      setStatusMessage(`Partie "${payload.party.name}" chargee.`);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Chargement impossible.");
+    } finally {
+      setIsLoadingParty(false);
+    }
+  }
+
+  async function handleSaveParty() {
+    setIsSavingParty(true);
+    setStatusMessage(undefined);
+
+    try {
+      const response = await fetch("/api/flowers-parties", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: partyId,
+          name: partyName,
+          players,
+          rounds,
+          scoreSheets,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("La sauvegarde a echoue.");
+      }
+
+      const payload = (await response.json()) as FlowersPartyResponse;
+      applyPartySnapshot(payload.party);
+      await refreshSavedParties();
+      setStatusMessage(`Partie "${payload.party.name}" sauvegardee.`);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Sauvegarde impossible.");
+    } finally {
+      setIsSavingParty(false);
+    }
+  }
 
   function handleAddPlayer(name: string) {
     const playerId = createEntityId("player");
@@ -158,8 +276,8 @@ export default function HomePage() {
                   </p>
                   <CardTitle className="font-display text-4xl md:text-5xl">Flowers</CardTitle>
                   <CardDescription className="max-w-2xl text-base">
-                    Une feuille de marque multi-manches, simple a remplir, avec total cumule et
-                    classement final en direct.
+                    Une feuille de marque multi-manches, simple a remplir, avec total cumule,
+                    classement final et sauvegarde en base Postgres.
                   </CardDescription>
                 </div>
                 <ThemeToggle />
@@ -187,6 +305,19 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </section>
+
+        <FlowersPartyStoragePanel
+          activePartyId={partyId}
+          isLoadingParty={isLoadingParty}
+          isSavingParty={isSavingParty}
+          partyName={partyName}
+          savedParties={savedParties}
+          statusMessage={statusMessage}
+          onChangePartyName={setPartyName}
+          onCreateParty={resetParty}
+          onLoadParty={handleLoadParty}
+          onSaveParty={handleSaveParty}
+        />
 
         <AddPlayerForm onAddPlayer={handleAddPlayer} placeholder="Nom du joueur" />
 

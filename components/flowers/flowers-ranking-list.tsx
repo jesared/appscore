@@ -39,7 +39,7 @@ export function FlowersRankingList({ rankingPlayers }: FlowersRankingListProps) 
                 <div
                   key={player.id}
                   className={cn(
-                    "flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-card-foreground",
+                    "flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-card-foreground sm:flex-row sm:items-center sm:justify-between",
                     isLeader && "border-primary bg-primary/10",
                   )}
                 >
@@ -60,7 +60,7 @@ export function FlowersRankingList({ rankingPlayers }: FlowersRankingListProps) 
                     </div>
                   </div>
 
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Cumul</p>
                     <p className="text-xl font-semibold">{player.cumulativeTotal}</p>
                   </div>

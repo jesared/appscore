@@ -133,12 +133,44 @@ export function FlowersScoreTable({
             </CardDescription>
           </div>
 
-          <Button onClick={onAddRound}>Ajouter une manche</Button>
+          <Button className="w-full md:w-auto" onClick={onAddRound}>
+            Ajouter une manche
+          </Button>
         </div>
       </CardHeader>
 
       <CardContent className="pt-6">
-        <div className="overflow-x-auto">
+        <div className="space-y-6 lg:hidden">
+          <MobilePlayersSection
+            players={players}
+            rankingByPlayerId={rankingByPlayerId}
+            leaderPlayerId={leader?.id}
+            onChangePlayerName={onChangePlayerName}
+            onRemovePlayer={handleRemovePlayer}
+          />
+
+          {rounds.map((round) => (
+            <MobileRoundSection
+              key={round.id}
+              players={players}
+              round={round}
+              roundsCount={rounds.length}
+              scoreSheets={scoreSheets}
+              leaderPlayerId={leader?.id}
+              onChangeScore={onChangeScore}
+              onRemoveRound={handleRemoveRound}
+            />
+          ))}
+
+          <MobileCumulativeSection
+            players={players}
+            rounds={rounds}
+            scoreSheets={scoreSheets}
+            leaderPlayerId={leader?.id}
+          />
+        </div>
+
+        <div className="hidden overflow-x-auto lg:block">
           <table className="min-w-[860px] w-full border-separate border-spacing-0">
             <thead>
               <tr>
@@ -242,6 +274,240 @@ export function FlowersScoreTable({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+type MobilePlayersSectionProps = {
+  players: Player[];
+  rankingByPlayerId: Map<string, FlowersRankingPlayer>;
+  leaderPlayerId?: string;
+  onChangePlayerName: (playerId: string, name: string) => void;
+  onRemovePlayer: (player: Player) => void;
+};
+
+function MobilePlayersSection({
+  players,
+  rankingByPlayerId,
+  leaderPlayerId,
+  onChangePlayerName,
+  onRemovePlayer,
+}: MobilePlayersSectionProps) {
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-foreground">Joueurs</p>
+        <p className="text-xs text-muted-foreground">
+          Renomme les joueurs et retrouve leur cumul sans scroller horizontalement.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {players.map((player) => {
+          const ranking = rankingByPlayerId.get(player.id);
+          const isLeader = leaderPlayerId === player.id;
+
+          return (
+            <div
+              key={player.id}
+              className={cn(
+                "rounded-2xl border border-border bg-card p-4 text-card-foreground",
+                isLeader && "border-primary bg-primary/10",
+              )}
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Input
+                      value={player.name}
+                      onChange={(event) => onChangePlayerName(player.id, event.target.value)}
+                      placeholder="Nom du joueur"
+                      aria-label={`Nom du joueur ${player.id}`}
+                    />
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Classement #{ranking?.rank ?? "-"}</span>
+                      <span>Cumul {ranking?.cumulativeTotal ?? 0}</span>
+                    </div>
+                  </div>
+
+                  {isLeader ? (
+                    <span className="shrink-0 rounded-full bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">
+                      Leader
+                    </span>
+                  ) : null}
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => onRemovePlayer(player)}
+                >
+                  Supprimer
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+type MobileRoundSectionProps = {
+  players: Player[];
+  round: FlowersRound;
+  roundsCount: number;
+  scoreSheets: FlowersScoreSheetsByPlayer;
+  leaderPlayerId?: string;
+  onChangeScore: (playerId: string, roundId: string, fieldId: FlowersScoreFieldId, value: number) => void;
+  onRemoveRound: (round: FlowersRound) => void;
+};
+
+function MobileRoundSection({
+  players,
+  round,
+  roundsCount,
+  scoreSheets,
+  leaderPlayerId,
+  onChangeScore,
+  onRemoveRound,
+}: MobileRoundSectionProps) {
+  return (
+    <section className="space-y-3 rounded-3xl border border-border bg-card p-4 text-card-foreground">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-base font-semibold text-foreground">{round.name}</p>
+          <p className="text-xs text-muted-foreground">
+            Saisie rapide de la manche pour chaque joueur.
+          </p>
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={() => onRemoveRound(round)}
+          disabled={roundsCount === 1}
+        >
+          Supprimer la manche
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {players.map((player) => {
+          const roundSheet = scoreSheets[player.id]?.[round.id] ?? createEmptyFlowersScoreSheet();
+          const roundTotal = calculateFlowersTotal(roundSheet);
+          const isLeader = leaderPlayerId === player.id;
+
+          return (
+            <div
+              key={`${round.id}-${player.id}`}
+              className={cn(
+                "rounded-2xl border border-border bg-background p-4",
+                isLeader && "border-primary bg-primary/5",
+              )}
+            >
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-foreground">{player.name || "Sans nom"}</p>
+                  <p className="text-xs text-muted-foreground">{round.name}</p>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total</p>
+                  <p className="text-2xl font-semibold text-foreground">{roundTotal.finalTotal}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {flowersScoreFields.map((field) => (
+                  <label
+                    key={`${round.id}-${player.id}-${field.id}`}
+                    className={cn(
+                      "space-y-2 rounded-2xl border border-border bg-card p-3",
+                      field.kind === "penalty" && "col-span-2",
+                    )}
+                  >
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      {field.kind === "color" ? (
+                        <span
+                          className="size-3 rounded-full border border-black/10 shadow-sm"
+                          style={{ backgroundColor: field.accentColor ?? "#CBD5E1" }}
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      <span>{field.label}</span>
+                    </div>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={field.min ?? 0}
+                      value={roundSheet[field.id]}
+                      onChange={(event) =>
+                        onChangeScore(
+                          player.id,
+                          round.id,
+                          field.id,
+                          parseNumericValue(event.target.value, field.min ?? 0),
+                        )
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+type MobileCumulativeSectionProps = {
+  players: Player[];
+  rounds: FlowersRound[];
+  scoreSheets: FlowersScoreSheetsByPlayer;
+  leaderPlayerId?: string;
+};
+
+function MobileCumulativeSection({
+  players,
+  rounds,
+  scoreSheets,
+  leaderPlayerId,
+}: MobileCumulativeSectionProps) {
+  return (
+    <section className="space-y-3 rounded-3xl bg-primary p-4 text-primary-foreground">
+      <div>
+        <p className="font-semibold">Total cumule</p>
+        <p className="text-xs text-primary-foreground/80">Somme de toutes les manches</p>
+      </div>
+
+      <div className="space-y-2">
+        {players.map((player) => {
+          const cumulativeTotal = calculateFlowersCumulativeTotal(rounds, scoreSheets[player.id]);
+          const isLeader = leaderPlayerId === player.id;
+
+          return (
+            <div
+              key={`mobile-cumulative-${player.id}`}
+              className={cn(
+                "flex items-center justify-between rounded-2xl bg-primary-foreground/10 px-4 py-3",
+                isLeader && "bg-primary-foreground/20",
+              )}
+            >
+              <div>
+                <p className="font-medium text-primary-foreground">{player.name || "Sans nom"}</p>
+                <p className="text-xs text-primary-foreground/80">
+                  {isLeader ? "Leader actuel" : "Total partie"}
+                </p>
+              </div>
+              <p className="text-2xl font-semibold text-primary-foreground">{cumulativeTotal}</p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

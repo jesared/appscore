@@ -1,5 +1,3 @@
-import type { PrismaClient } from "@prisma/client";
-
 import { prisma } from "@/lib/prisma";
 import { createEmptyFlowersScoreSheet } from "@/lib/flowers-score";
 import type {
@@ -10,7 +8,7 @@ import type {
 import type { FlowersScoreSheetsByPlayer } from "@/types/flowers-score";
 
 type TransactionClient = Omit<
-  PrismaClient,
+  typeof prisma,
   "$connect" | "$disconnect" | "$extends" | "$on" | "$transaction" | "$use"
 >;
 

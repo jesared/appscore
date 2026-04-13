@@ -2,6 +2,13 @@ import type { FlowersScoreField } from "@/types/flowers-score";
 
 export const flowersScoreFields: FlowersScoreField[] = [
   {
+    id: "invalidCards",
+    label: "Malus",
+    kind: "penalty",
+    description: "Nombre de cartes non valides a retirer du total.",
+    min: 0,
+  },
+  {
     id: "blueScore",
     label: "Bleu",
     kind: "color",
@@ -38,13 +45,6 @@ export const flowersScoreFields: FlowersScoreField[] = [
     label: "Papillons",
     kind: "bonus",
     description: "Bonus papillon.",
-    min: 0,
-  },
-  {
-    id: "invalidCards",
-    label: "Malus",
-    kind: "penalty",
-    description: "Nombre de cartes non valides a retirer du total.",
     min: 0,
   },
 ];

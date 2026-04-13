@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +31,18 @@ type FlowersScoreTableProps = {
   onChangeScore: (playerId: string, roundId: string, fieldId: FlowersScoreFieldId, value: number) => void;
   onRemovePlayer: (playerId: string) => void;
   onRemoveRound: (roundId: string) => void;
+};
+
+type RoundSectionProps = {
+  players: Player[];
+  round: FlowersRound;
+  roundsCount: number;
+  scoreSheets: FlowersScoreSheetsByPlayer;
+  leaderPlayerId?: string;
+  isCollapsed: boolean;
+  onChangeScore: (playerId: string, roundId: string, fieldId: FlowersScoreFieldId, value: number) => void;
+  onToggleCollapsed: (roundId: string) => void;
+  onRemoveRound: (round: FlowersRound) => void;
 };
 
 function parseNumericValue(rawValue: string, min = 0) {
@@ -65,6 +79,11 @@ function ScoreRowLabel({ field }: { field: FlowersScoreField }) {
   );
 }
 
+function getRoundTotal(scoreSheets: FlowersScoreSheetsByPlayer, playerId: string, roundId: string) {
+  const roundSheet = scoreSheets[playerId]?.[roundId] ?? createEmptyFlowersScoreSheet();
+  return calculateFlowersTotal(roundSheet);
+}
+
 export function FlowersScoreTable({
   players,
   rounds,
@@ -76,8 +95,19 @@ export function FlowersScoreTable({
   onRemovePlayer,
   onRemoveRound,
 }: FlowersScoreTableProps) {
+  const [collapsedRoundIds, setCollapsedRoundIds] = useState<string[]>([]);
   const rankingByPlayerId = new Map(rankingPlayers.map((player) => [player.id, player]));
   const leader = rankingPlayers[0];
+
+  const isRoundCollapsed = (roundId: string) => collapsedRoundIds.includes(roundId);
+
+  const toggleRoundCollapsed = (roundId: string) => {
+    setCollapsedRoundIds((currentIds) =>
+      currentIds.includes(roundId)
+        ? currentIds.filter((currentId) => currentId !== roundId)
+        : [...currentIds, roundId],
+    );
+  };
 
   const handleRemovePlayer = (player: Player) => {
     const playerLabel = player.name.trim() || "ce joueur";
@@ -157,7 +187,9 @@ export function FlowersScoreTable({
               roundsCount={rounds.length}
               scoreSheets={scoreSheets}
               leaderPlayerId={leader?.id}
+              isCollapsed={isRoundCollapsed(round.id)}
               onChangeScore={onChangeScore}
+              onToggleCollapsed={toggleRoundCollapsed}
               onRemoveRound={handleRemoveRound}
             />
           ))}
@@ -221,14 +253,16 @@ export function FlowersScoreTable({
 
             <tbody>
               {rounds.map((round) => (
-                <FragmentSection
+                <DesktopRoundSection
                   key={round.id}
                   players={players}
                   round={round}
                   roundsCount={rounds.length}
                   scoreSheets={scoreSheets}
                   leaderPlayerId={leader?.id}
+                  isCollapsed={isRoundCollapsed(round.id)}
                   onChangeScore={onChangeScore}
+                  onToggleCollapsed={toggleRoundCollapsed}
                   onRemoveRound={handleRemoveRound}
                 />
               ))}
@@ -353,112 +387,139 @@ function MobilePlayersSection({
   );
 }
 
-type MobileRoundSectionProps = {
-  players: Player[];
-  round: FlowersRound;
-  roundsCount: number;
-  scoreSheets: FlowersScoreSheetsByPlayer;
-  leaderPlayerId?: string;
-  onChangeScore: (playerId: string, roundId: string, fieldId: FlowersScoreFieldId, value: number) => void;
-  onRemoveRound: (round: FlowersRound) => void;
-};
-
 function MobileRoundSection({
   players,
   round,
   roundsCount,
   scoreSheets,
   leaderPlayerId,
+  isCollapsed,
   onChangeScore,
+  onToggleCollapsed,
   onRemoveRound,
-}: MobileRoundSectionProps) {
+}: RoundSectionProps) {
   return (
     <section className="space-y-3 rounded-3xl border border-border bg-card p-4 text-card-foreground">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <p className="text-base font-semibold text-foreground">{round.name}</p>
           <p className="text-xs text-muted-foreground">
-            Saisie rapide de la manche pour chaque joueur.
+            {isCollapsed
+              ? "Manche repliee. Les totaux restent visibles."
+              : "Saisie rapide de la manche pour chaque joueur."}
           </p>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full sm:w-auto"
-          onClick={() => onRemoveRound(round)}
-          disabled={roundsCount === 1}
-        >
-          Supprimer la manche
-        </Button>
+        <div className="flex flex-col gap-2 sm:w-auto sm:items-end">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={() => onToggleCollapsed(round.id)}
+          >
+            {isCollapsed ? "Deplier la manche" : "Replier la manche"}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={() => onRemoveRound(round)}
+            disabled={roundsCount === 1}
+          >
+            Supprimer la manche
+          </Button>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        {players.map((player) => {
-          const roundSheet = scoreSheets[player.id]?.[round.id] ?? createEmptyFlowersScoreSheet();
-          const roundTotal = calculateFlowersTotal(roundSheet);
-          const isLeader = leaderPlayerId === player.id;
+      {isCollapsed ? (
+        <div className="grid gap-2">
+          {players.map((player) => {
+            const roundTotal = getRoundTotal(scoreSheets, player.id, round.id);
+            const isLeader = leaderPlayerId === player.id;
 
-          return (
-            <div
-              key={`${round.id}-${player.id}`}
-              className={cn(
-                "rounded-2xl border border-border bg-background p-4",
-                isLeader && "border-primary bg-primary/5",
-              )}
-            >
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-foreground">{player.name || "Sans nom"}</p>
-                  <p className="text-xs text-muted-foreground">{round.name}</p>
+            return (
+              <div
+                key={`${round.id}-${player.id}-summary`}
+                className={cn(
+                  "flex items-center justify-between rounded-2xl border border-border bg-background px-4 py-3",
+                  isLeader && "border-primary bg-primary/5",
+                )}
+              >
+                <p className="font-medium text-foreground">{player.name || "Sans nom"}</p>
+                <p className="text-xl font-semibold text-foreground">{roundTotal.finalTotal}</p>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {players.map((player) => {
+            const roundSheet = scoreSheets[player.id]?.[round.id] ?? createEmptyFlowersScoreSheet();
+            const roundTotal = calculateFlowersTotal(roundSheet);
+            const isLeader = leaderPlayerId === player.id;
+
+            return (
+              <div
+                key={`${round.id}-${player.id}`}
+                className={cn(
+                  "rounded-2xl border border-border bg-background p-4",
+                  isLeader && "border-primary bg-primary/5",
+                )}
+              >
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">{player.name || "Sans nom"}</p>
+                    <p className="text-xs text-muted-foreground">{round.name}</p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Total</p>
+                    <p className="text-2xl font-semibold text-foreground">{roundTotal.finalTotal}</p>
+                  </div>
                 </div>
 
-                <div className="text-right">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total</p>
-                  <p className="text-2xl font-semibold text-foreground">{roundTotal.finalTotal}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {flowersScoreFields.map((field) => (
+                    <label
+                      key={`${round.id}-${player.id}-${field.id}`}
+                      className={cn(
+                        "space-y-2 rounded-2xl border border-border bg-card p-3",
+                        field.kind === "penalty" && "col-span-2",
+                      )}
+                    >
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        {field.kind === "color" ? (
+                          <span
+                            className="size-3 rounded-full border border-black/10 shadow-sm"
+                            style={{ backgroundColor: field.accentColor ?? "#CBD5E1" }}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        <span>{field.label}</span>
+                      </div>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={field.min ?? 0}
+                        value={roundSheet[field.id]}
+                        onChange={(event) =>
+                          onChangeScore(
+                            player.id,
+                            round.id,
+                            field.id,
+                            parseNumericValue(event.target.value, field.min ?? 0),
+                          )
+                        }
+                      />
+                    </label>
+                  ))}
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {flowersScoreFields.map((field) => (
-                  <label
-                    key={`${round.id}-${player.id}-${field.id}`}
-                    className={cn(
-                      "space-y-2 rounded-2xl border border-border bg-card p-3",
-                      field.kind === "penalty" && "col-span-2",
-                    )}
-                  >
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      {field.kind === "color" ? (
-                        <span
-                          className="size-3 rounded-full border border-black/10 shadow-sm"
-                          style={{ backgroundColor: field.accentColor ?? "#CBD5E1" }}
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                      <span>{field.label}</span>
-                    </div>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min={field.min ?? 0}
-                      value={roundSheet[field.id]}
-                      onChange={(event) =>
-                        onChangeScore(
-                          player.id,
-                          round.id,
-                          field.id,
-                          parseNumericValue(event.target.value, field.min ?? 0),
-                        )
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
@@ -511,25 +572,17 @@ function MobileCumulativeSection({
   );
 }
 
-type FragmentSectionProps = {
-  players: Player[];
-  round: FlowersRound;
-  roundsCount: number;
-  scoreSheets: FlowersScoreSheetsByPlayer;
-  leaderPlayerId?: string;
-  onChangeScore: (playerId: string, roundId: string, fieldId: FlowersScoreFieldId, value: number) => void;
-  onRemoveRound: (round: FlowersRound) => void;
-};
-
-function FragmentSection({
+function DesktopRoundSection({
   players,
   round,
   roundsCount,
   scoreSheets,
   leaderPlayerId,
+  isCollapsed,
   onChangeScore,
+  onToggleCollapsed,
   onRemoveRound,
-}: FragmentSectionProps) {
+}: RoundSectionProps) {
   return (
     <>
       <tr>
@@ -538,82 +591,118 @@ function FragmentSection({
             <div>
               <p className="text-sm font-semibold text-foreground">{round.name}</p>
               <p className="text-xs text-muted-foreground">
-                Saisie de la manche, avec total calcule en direct.
+                {isCollapsed
+                  ? "Manche repliee. Les totaux restent visibles."
+                  : "Saisie de la manche, avec total calcule en direct."}
               </p>
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onRemoveRound(round)}
-              disabled={roundsCount === 1}
-            >
-              Supprimer la manche
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" size="sm" onClick={() => onToggleCollapsed(round.id)}>
+                {isCollapsed ? "Deplier la manche" : "Replier la manche"}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemoveRound(round)}
+                disabled={roundsCount === 1}
+              >
+                Supprimer la manche
+              </Button>
+            </div>
           </div>
         </td>
       </tr>
 
-      {flowersScoreFields.map((field) => (
-        <tr key={`${round.id}-${field.id}`}>
-          <td className="sticky left-0 z-10 border-t border-border/60 bg-background px-4 py-4 align-middle">
-            <ScoreRowLabel field={field} />
+      {isCollapsed ? (
+        <tr>
+          <td className="sticky left-0 z-10 border-t border-border/60 bg-secondary px-4 py-4 text-secondary-foreground">
+            <div>
+              <p className="font-semibold">Total manche</p>
+              <p className="text-xs text-secondary-foreground/80">Resume de la manche repliee</p>
+            </div>
           </td>
 
-          {players.map((player) => (
-            <td
-              key={`${round.id}-${field.id}-${player.id}`}
-              className={cn(
-                "border-l border-t border-border/60 bg-background px-4 py-4",
-                leaderPlayerId === player.id && "bg-primary/5",
-              )}
-            >
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={field.min ?? 0}
-                value={scoreSheets[player.id]?.[round.id]?.[field.id] ?? 0}
-                onChange={(event) =>
-                  onChangeScore(
-                    player.id,
-                    round.id,
-                    field.id,
-                    parseNumericValue(event.target.value, field.min ?? 0),
-                  )
-                }
-              />
-            </td>
-          ))}
+          {players.map((player) => {
+            const roundTotal = getRoundTotal(scoreSheets, player.id, round.id);
+
+            return (
+              <td
+                key={`${round.id}-collapsed-total-${player.id}`}
+                className={cn(
+                  "border-l border-t border-border/60 bg-secondary px-4 py-4 text-center text-secondary-foreground",
+                  leaderPlayerId === player.id && "bg-primary/10 text-foreground",
+                )}
+              >
+                <p className="text-2xl font-semibold">{roundTotal.finalTotal}</p>
+              </td>
+            );
+          })}
         </tr>
-      ))}
+      ) : (
+        <>
+          {flowersScoreFields.map((field) => (
+            <tr key={`${round.id}-${field.id}`}>
+              <td className="sticky left-0 z-10 border-t border-border/60 bg-background px-4 py-4 align-middle">
+                <ScoreRowLabel field={field} />
+              </td>
 
-      <tr>
-        <td className="sticky left-0 z-10 border-t border-border/60 bg-secondary px-4 py-4 text-secondary-foreground">
-          <div>
-            <p className="font-semibold">Total manche</p>
-            <p className="text-xs text-secondary-foreground/80">
-              Couleurs + bonus papillon - malus
-            </p>
-          </div>
-        </td>
+              {players.map((player) => (
+                <td
+                  key={`${round.id}-${field.id}-${player.id}`}
+                  className={cn(
+                    "border-l border-t border-border/60 bg-background px-4 py-4",
+                    leaderPlayerId === player.id && "bg-primary/5",
+                  )}
+                >
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={field.min ?? 0}
+                    value={scoreSheets[player.id]?.[round.id]?.[field.id] ?? 0}
+                    onChange={(event) =>
+                      onChangeScore(
+                        player.id,
+                        round.id,
+                        field.id,
+                        parseNumericValue(event.target.value, field.min ?? 0),
+                      )
+                    }
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
 
-        {players.map((player) => {
-          const roundSheet = scoreSheets[player.id]?.[round.id];
-          const roundTotal = calculateFlowersTotal(roundSheet ?? createEmptyFlowersScoreSheet());
-
-          return (
-            <td
-              key={`${round.id}-total-${player.id}`}
-              className={cn(
-                "border-l border-t border-border/60 bg-secondary px-4 py-4 text-center text-secondary-foreground",
-                leaderPlayerId === player.id && "bg-primary/10 text-foreground",
-              )}
-            >
-              <p className="text-2xl font-semibold">{roundTotal.finalTotal}</p>
+          <tr>
+            <td className="sticky left-0 z-10 border-t border-border/60 bg-secondary px-4 py-4 text-secondary-foreground">
+              <div>
+                <p className="font-semibold">Total manche</p>
+                <p className="text-xs text-secondary-foreground/80">
+                  Couleurs + bonus papillon - malus
+                </p>
+              </div>
             </td>
-          );
-        })}
-      </tr>
+
+            {players.map((player) => {
+              const roundTotal = getRoundTotal(scoreSheets, player.id, round.id);
+
+              return (
+                <td
+                  key={`${round.id}-total-${player.id}`}
+                  className={cn(
+                    "border-l border-t border-border/60 bg-secondary px-4 py-4 text-center text-secondary-foreground",
+                    leaderPlayerId === player.id && "bg-primary/10 text-foreground",
+                  )}
+                >
+                  <p className="text-2xl font-semibold">{roundTotal.finalTotal}</p>
+                </td>
+              );
+            })}
+          </tr>
+        </>
+      )}
     </>
   );
 }

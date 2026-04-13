@@ -175,7 +175,7 @@ export default function HomePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-foreground">
-              <p>Score couleurs = Jaune + Bleu + Orange + Violet</p>
+              <p>Score couleurs = Bleu + Jaune + Rouge + Vert</p>
               <p>Total manche = Score couleurs + Bonus papillon - Malus</p>
               <p>Total cumule = Somme de toutes les manches</p>
               <div className="rounded-2xl bg-secondary p-4">

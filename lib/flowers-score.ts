@@ -11,10 +11,10 @@ import type {
 
 export function createEmptyFlowersScoreSheet(): FlowersScoreSheet {
   return {
-    yellowScore: 0,
     blueScore: 0,
-    orangeScore: 0,
-    purpleScore: 0,
+    yellowScore: 0,
+    redScore: 0,
+    greenScore: 0,
     butterflyScore: 0,
     invalidCards: 0,
   };
@@ -22,10 +22,10 @@ export function createEmptyFlowersScoreSheet(): FlowersScoreSheet {
 
 export function calculateFlowersTotal(scoreSheet: FlowersScoreSheet): FlowersScoreCalculation {
   const colorTotal =
-    scoreSheet.yellowScore +
     scoreSheet.blueScore +
-    scoreSheet.orangeScore +
-    scoreSheet.purpleScore;
+    scoreSheet.yellowScore +
+    scoreSheet.redScore +
+    scoreSheet.greenScore;
 
   const butterflyPoints = scoreSheet.butterflyScore;
   const invalidPenalty = scoreSheet.invalidCards;

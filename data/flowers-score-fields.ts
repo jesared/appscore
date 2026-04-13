@@ -2,14 +2,6 @@ import type { FlowersScoreField } from "@/types/flowers-score";
 
 export const flowersScoreFields: FlowersScoreField[] = [
   {
-    id: "yellowScore",
-    label: "Jaune",
-    kind: "color",
-    description: "Score obtenu pour la couleur jaune.",
-    accentColor: "#FACC15",
-    min: 0,
-  },
-  {
     id: "blueScore",
     label: "Bleu",
     kind: "color",
@@ -18,19 +10,27 @@ export const flowersScoreFields: FlowersScoreField[] = [
     min: 0,
   },
   {
-    id: "orangeScore",
-    label: "Orange",
+    id: "yellowScore",
+    label: "Jaune",
     kind: "color",
-    description: "Score obtenu pour la couleur orange.",
-    accentColor: "#FB923C",
+    description: "Score obtenu pour la couleur jaune.",
+    accentColor: "#FACC15",
     min: 0,
   },
   {
-    id: "purpleScore",
-    label: "Violet",
+    id: "redScore",
+    label: "Rouge",
     kind: "color",
-    description: "Score obtenu pour la couleur violette.",
-    accentColor: "#A78BFA",
+    description: "Score obtenu pour la couleur rouge.",
+    accentColor: "#F87171",
+    min: 0,
+  },
+  {
+    id: "greenScore",
+    label: "Vert",
+    kind: "color",
+    description: "Score obtenu pour la couleur verte.",
+    accentColor: "#4ADE80",
     min: 0,
   },
   {

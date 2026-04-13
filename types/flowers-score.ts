@@ -1,10 +1,10 @@
 import type { Player } from "@/types/player";
 
 export type FlowersColorScoreFieldId =
-  | "yellowScore"
   | "blueScore"
-  | "orangeScore"
-  | "purpleScore";
+  | "yellowScore"
+  | "redScore"
+  | "greenScore";
 
 export type FlowersExtraScoreFieldId = "butterflyScore" | "invalidCards";
 
@@ -22,10 +22,10 @@ export type FlowersScoreField = {
 };
 
 export type FlowersScoreSheet = {
-  yellowScore: number;
   blueScore: number;
-  orangeScore: number;
-  purpleScore: number;
+  yellowScore: number;
+  redScore: number;
+  greenScore: number;
   butterflyScore: number;
   invalidCards: number;
 };

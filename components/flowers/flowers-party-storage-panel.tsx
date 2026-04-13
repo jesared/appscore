@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { FlowersPartySummary } from "@/types/flowers-party";
@@ -35,6 +42,16 @@ type PartyCardProps = {
   onTogglePartyActive: (partyId: string, isActive: boolean) => void;
 };
 
+type PartyActionsMenuProps = {
+  isBusy: boolean;
+  isCurrentParty: boolean;
+  party: FlowersPartySummary;
+  onDelete: () => void;
+  onLoad: () => void;
+  onRename: () => void;
+  onToggleActive: () => void;
+};
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", {
     dateStyle: "short",
@@ -60,6 +77,59 @@ function PartyBadge({
     >
       {children}
     </span>
+  );
+}
+
+function PartyActionsMenu({
+  isBusy,
+  isCurrentParty,
+  party,
+  onDelete,
+  onLoad,
+  onRename,
+  onToggleActive,
+}: PartyActionsMenuProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          disabled={isBusy}
+          aria-label={`Ouvrir le menu des actions pour ${party.name}`}
+        >
+          <span className="flex flex-col items-center justify-center gap-1" aria-hidden="true">
+            <span className="size-1 rounded-full bg-current" />
+            <span className="size-1 rounded-full bg-current" />
+            <span className="size-1 rounded-full bg-current" />
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          disabled={isBusy || isCurrentParty}
+          onSelect={onLoad}
+        >
+          {isCurrentParty ? "Partie ouverte" : "Charger"}
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={isBusy} onSelect={onRename}>
+          Renommer
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={isBusy} onSelect={onToggleActive}>
+          {party.isActive ? "Desactiver" : "Reactiver"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={isBusy || isCurrentParty}
+          onSelect={onDelete}
+          className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+        >
+          Supprimer
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -161,6 +231,7 @@ function PartyCard({
                     return;
                   }
 
+                  setIsEditingName(false);
                   onRenameParty(party.id, draftName);
                 }}
               >
@@ -207,16 +278,21 @@ function PartyCard({
             )}
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-            onClick={() => onLoadParty(party.id)}
-            disabled={isBusy || isCurrentParty}
-          >
-            {isCurrentParty ? "Ouverte" : "Charger"}
-          </Button>
+          <PartyActionsMenu
+            isBusy={isBusy}
+            isCurrentParty={isCurrentParty}
+            party={party}
+            onDelete={() => {
+              setIsEditingName(false);
+              setIsConfirmingDelete(true);
+            }}
+            onLoad={() => onLoadParty(party.id)}
+            onRename={() => {
+              setIsConfirmingDelete(false);
+              setIsEditingName(true);
+            }}
+            onToggleActive={() => onTogglePartyActive(party.id, !party.isActive)}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3 rounded-2xl bg-background p-3">
@@ -244,45 +320,6 @@ function PartyCard({
               {formatDate(party.updatedAt)}
             </p>
           </div>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full"
-            onClick={() => {
-              setIsConfirmingDelete(false);
-              setIsEditingName(true);
-            }}
-            disabled={isBusy}
-          >
-            Renommer
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full"
-            onClick={() => onTogglePartyActive(party.id, !party.isActive)}
-            disabled={isBusy}
-          >
-            {party.isActive ? "Desactiver" : "Reactiver"}
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            className="w-full"
-            onClick={() => {
-              setIsEditingName(false);
-              setIsConfirmingDelete(true);
-            }}
-            disabled={isBusy}
-          >
-            Supprimer
-          </Button>
         </div>
 
         {isConfirmingDelete ? (

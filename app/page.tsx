@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { FlowersPartyStoragePanel } from "@/components/flowers/flowers-party-storage-panel";
@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ToastStack, type AppToast } from "@/components/ui/toast-stack";
 import {
   FLOWERS_MAX_PLAYERS,
   buildFlowersRanking,
@@ -57,6 +58,9 @@ type FlowersPartyResponse = {
   party: FlowersPartySnapshot;
 };
 
+type SaveMode = "auto" | "manual";
+type SaveStatus = "dirty" | "error" | "idle" | "saved" | "saving";
+
 async function getApiErrorMessage(response: Response, fallbackMessage: string) {
   try {
     const payload = (await response.json()) as { message?: string };
@@ -69,6 +73,29 @@ async function getApiErrorMessage(response: Response, fallbackMessage: string) {
   }
 
   return fallbackMessage;
+}
+
+function serializePartyDraft(input: {
+  id?: string;
+  name: string;
+  players: Player[];
+  rounds: FlowersRound[];
+  scoreSheets: FlowersScoreSheetsByPlayer;
+}) {
+  return JSON.stringify({
+    id: input.id,
+    name: input.name.trim(),
+    players: input.players,
+    rounds: input.rounds,
+    scoreSheets: input.scoreSheets,
+  });
+}
+
+function formatSaveTime(value: string) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 export default function HomePage() {
@@ -85,7 +112,29 @@ export default function HomePage() {
   const [isLoadingParty, setIsLoadingParty] = useState(false);
   const [isSavingParty, setIsSavingParty] = useState(false);
   const [isMutatingParty, setIsMutatingParty] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string>();
+  const [activeSaveMode, setActiveSaveMode] = useState<SaveMode | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string>();
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [toasts, setToasts] = useState<AppToast[]>([]);
+  const lastSavedSnapshotRef = useRef<string | null>(null);
+  const persistPartyRef = useRef<(saveMode: SaveMode) => Promise<void>>(async () => {});
+
+  function pushToast(message: string, variant: AppToast["variant"] = "info") {
+    setToasts((currentToasts) => [
+      ...currentToasts,
+      {
+        id: createEntityId("toast"),
+        message,
+        variant,
+      },
+    ]);
+  }
+
+  function dismissToast(toastId: string) {
+    setToasts((currentToasts) =>
+      currentToasts.filter((toast) => toast.id !== toastId),
+    );
+  }
 
   async function refreshSavedParties() {
     const response = await fetch("/api/flowers-parties", {
@@ -112,15 +161,38 @@ export default function HomePage() {
     setPlayers(party.players);
     setRounds(party.rounds);
     setScoreSheets(party.scoreSheets);
+    lastSavedSnapshotRef.current = serializePartyDraft({
+      id: party.id,
+      name: party.name,
+      players: party.players,
+      rounds: party.rounds,
+      scoreSheets: party.scoreSheets,
+    });
+    setLastSavedAt(party.updatedAt);
+    setSaveStatus("saved");
   }
 
-  function resetParty() {
+  function resetParty(showToast = true) {
+    const nextRounds = createInitialRounds();
+
     setPartyId(undefined);
     setPartyName("Partie Flowers");
     setPlayers([]);
-    setRounds(createInitialRounds());
+    setRounds(nextRounds);
     setScoreSheets({});
-    setStatusMessage("Nouvelle partie prete.");
+    setLastSavedAt(undefined);
+    setSaveStatus("idle");
+    setActiveSaveMode(null);
+    lastSavedSnapshotRef.current = serializePartyDraft({
+      name: "Partie Flowers",
+      players: [],
+      rounds: nextRounds,
+      scoreSheets: {},
+    });
+
+    if (showToast) {
+      pushToast("Nouvelle partie prete.", "info");
+    }
   }
 
   useEffect(() => {
@@ -128,46 +200,34 @@ export default function HomePage() {
       try {
         await refreshSavedParties();
       } catch (error) {
-        setStatusMessage(
-          error instanceof Error
-            ? error.message
-            : "Chargement initial impossible.",
+        pushToast(
+          error instanceof Error ? error.message : "Chargement initial impossible.",
+          "error",
         );
       }
     })();
   }, []);
 
-  async function handleLoadParty(nextPartyId: string) {
-    setIsLoadingParty(true);
-    setStatusMessage(undefined);
+  const currentSnapshot = serializePartyDraft({
+    id: partyId,
+    name: partyName,
+    players,
+    rounds,
+    scoreSheets,
+  });
 
-    try {
-      const response = await fetch(`/api/flowers-parties/${nextPartyId}`, {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          await getApiErrorMessage(response, "Impossible de charger cette partie."),
-        );
-      }
-
-      const payload = (await response.json()) as FlowersPartyResponse;
-      applyPartySnapshot(payload.party);
-      setStatusMessage(`Partie "${payload.party.name}" chargee.`);
-    } catch (error) {
-      setStatusMessage(
-        error instanceof Error ? error.message : "Chargement impossible.",
-      );
-    } finally {
-      setIsLoadingParty(false);
+  persistPartyRef.current = async (saveMode: SaveMode) => {
+    if (isLoadingParty || isMutatingParty || isSavingParty) {
+      return;
     }
-  }
 
-  async function handleSaveParty() {
+    if (saveMode === "auto" && currentSnapshot === lastSavedSnapshotRef.current) {
+      return;
+    }
+
     setIsSavingParty(true);
-    setStatusMessage(undefined);
+    setActiveSaveMode(saveMode);
+    setSaveStatus("saving");
 
     try {
       const response = await fetch("/api/flowers-parties", {
@@ -193,19 +253,99 @@ export default function HomePage() {
       const payload = (await response.json()) as FlowersPartyResponse;
       applyPartySnapshot(payload.party);
       await refreshSavedParties();
-      setStatusMessage(`Partie "${payload.party.name}" sauvegardee.`);
+
+      if (saveMode === "manual") {
+        pushToast(`Partie "${payload.party.name}" sauvegardee.`, "success");
+      }
     } catch (error) {
-      setStatusMessage(
-        error instanceof Error ? error.message : "Sauvegarde impossible.",
+      setSaveStatus("error");
+      pushToast(
+        error instanceof Error
+          ? saveMode === "auto"
+            ? `Autosauvegarde impossible: ${error.message}`
+            : error.message
+          : saveMode === "auto"
+            ? "Autosauvegarde impossible."
+            : "Sauvegarde impossible.",
+        "error",
       );
     } finally {
       setIsSavingParty(false);
+      setActiveSaveMode(null);
     }
+  };
+
+  useEffect(() => {
+    if (lastSavedSnapshotRef.current === null) {
+      lastSavedSnapshotRef.current = currentSnapshot;
+      return;
+    }
+
+    if (isLoadingParty || isMutatingParty || isSavingParty) {
+      return;
+    }
+
+    const hasSomethingToSave = Boolean(partyId) || players.length > 0;
+
+    if (!hasSomethingToSave) {
+      setSaveStatus("idle");
+      return;
+    }
+
+    if (currentSnapshot === lastSavedSnapshotRef.current) {
+      return;
+    }
+
+    setSaveStatus("dirty");
+
+    const timeout = window.setTimeout(() => {
+      void persistPartyRef.current("auto");
+    }, 1400);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    currentSnapshot,
+    isLoadingParty,
+    isMutatingParty,
+    isSavingParty,
+    partyId,
+    players.length,
+  ]);
+
+  async function handleLoadParty(nextPartyId: string) {
+    setIsLoadingParty(true);
+
+    try {
+      const response = await fetch(`/api/flowers-parties/${nextPartyId}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await getApiErrorMessage(response, "Impossible de charger cette partie."),
+        );
+      }
+
+      const payload = (await response.json()) as FlowersPartyResponse;
+      applyPartySnapshot(payload.party);
+      pushToast(`Partie "${payload.party.name}" chargee.`, "info");
+    } catch (error) {
+      pushToast(
+        error instanceof Error ? error.message : "Chargement impossible.",
+        "error",
+      );
+    } finally {
+      setIsLoadingParty(false);
+    }
+  }
+
+  async function handleSaveParty() {
+    await persistPartyRef.current("manual");
   }
 
   async function handleTogglePartyActive(targetPartyId: string, isActive: boolean) {
     setIsMutatingParty(true);
-    setStatusMessage(undefined);
 
     try {
       const response = await fetch(`/api/flowers-parties/${targetPartyId}`, {
@@ -229,14 +369,13 @@ export default function HomePage() {
 
       const targetParty = savedParties.find((party) => party.id === targetPartyId);
       const actionLabel = isActive ? "reactivee" : "desactivee";
-      setStatusMessage(
-        `Partie "${targetParty?.name ?? "Flowers"}" ${actionLabel}.`,
-      );
+      pushToast(`Partie "${targetParty?.name ?? "Flowers"}" ${actionLabel}.`, "success");
     } catch (error) {
-      setStatusMessage(
+      pushToast(
         error instanceof Error
           ? error.message
           : "Mise a jour de la partie impossible.",
+        "error",
       );
     } finally {
       setIsMutatingParty(false);
@@ -247,12 +386,11 @@ export default function HomePage() {
     const normalizedName = nextName.trim();
 
     if (!normalizedName) {
-      setStatusMessage("Le nom de la partie ne peut pas etre vide.");
+      pushToast("Le nom de la partie ne peut pas etre vide.", "error");
       return;
     }
 
     setIsMutatingParty(true);
-    setStatusMessage(undefined);
 
     try {
       const response = await fetch(`/api/flowers-parties/${targetPartyId}`, {
@@ -272,15 +410,29 @@ export default function HomePage() {
         );
       }
 
+      const payload = (await response.json()) as {
+        party: FlowersPartySummary;
+      };
+
       if (partyId === targetPartyId) {
         setPartyName(normalizedName);
+        setLastSavedAt(payload.party.updatedAt);
+        setSaveStatus("saved");
+        lastSavedSnapshotRef.current = serializePartyDraft({
+          id: targetPartyId,
+          name: normalizedName,
+          players,
+          rounds,
+          scoreSheets,
+        });
       }
 
       await refreshSavedParties();
-      setStatusMessage(`Partie renommee en "${normalizedName}".`);
+      pushToast(`Partie renommee en "${normalizedName}".`, "success");
     } catch (error) {
-      setStatusMessage(
+      pushToast(
         error instanceof Error ? error.message : "Renommage impossible.",
+        "error",
       );
     } finally {
       setIsMutatingParty(false);
@@ -289,7 +441,6 @@ export default function HomePage() {
 
   async function handleDeleteParty(targetPartyId: string) {
     setIsMutatingParty(true);
-    setStatusMessage(undefined);
 
     try {
       const response = await fetch(`/api/flowers-parties/${targetPartyId}`, {
@@ -308,16 +459,15 @@ export default function HomePage() {
       const deletedParty = savedParties.find((party) => party.id === targetPartyId);
 
       if (partyId === targetPartyId) {
-        resetParty();
+        resetParty(false);
       }
 
       await refreshSavedParties();
-      setStatusMessage(
-        `Partie "${deletedParty?.name ?? "Flowers"}" supprimee.`,
-      );
+      pushToast(`Partie "${deletedParty?.name ?? "Flowers"}" supprimee.`, "success");
     } catch (error) {
-      setStatusMessage(
+      pushToast(
         error instanceof Error ? error.message : "Suppression impossible.",
+        "error",
       );
     } finally {
       setIsMutatingParty(false);
@@ -326,8 +476,9 @@ export default function HomePage() {
 
   function handleAddPlayer(name: string) {
     if (players.length >= FLOWERS_MAX_PLAYERS) {
-      setStatusMessage(
+      pushToast(
         `Une partie Flowers est limitee a ${FLOWERS_MAX_PLAYERS} joueurs.`,
+        "error",
       );
       return;
     }
@@ -353,8 +504,6 @@ export default function HomePage() {
       ...currentScoreSheets,
       [playerId]: playerScoreSheets,
     }));
-
-    setStatusMessage(undefined);
   }
 
   function handleChangePlayerName(playerId: string, name: string) {
@@ -452,6 +601,18 @@ export default function HomePage() {
   const rankingPlayers = buildFlowersRanking(players, rounds, scoreSheets);
   const leader = rankingPlayers[0];
   const isPlayerLimitReached = players.length >= FLOWERS_MAX_PLAYERS;
+  const statusMessage =
+    saveStatus === "saving"
+      ? activeSaveMode === "auto"
+        ? "Autosauvegarde en cours..."
+        : "Sauvegarde en cours..."
+      : saveStatus === "dirty"
+        ? "Modifications detectees. Autosauvegarde imminente."
+        : saveStatus === "saved" && lastSavedAt
+          ? `Derniere sauvegarde a ${formatSaveTime(lastSavedAt)}.`
+          : saveStatus === "error"
+            ? "La derniere sauvegarde a rencontre un probleme."
+            : undefined;
 
   return (
     <main className="container py-8 md:py-12">
@@ -546,6 +707,7 @@ export default function HomePage() {
 
         <FlowersRankingList rankingPlayers={rankingPlayers} />
       </div>
+      <ToastStack onDismiss={dismissToast} toasts={toasts} />
     </main>
   );
 }

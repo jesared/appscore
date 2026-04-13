@@ -3,7 +3,13 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { flowersScoreFields } from "@/data/flowers-score-fields";
 import {
@@ -12,7 +18,6 @@ import {
   createEmptyFlowersScoreSheet,
 } from "@/lib/flowers-score";
 import { cn } from "@/lib/utils";
-import type { Player } from "@/types/player";
 import type {
   FlowersRankingPlayer,
   FlowersRound,
@@ -20,6 +25,7 @@ import type {
   FlowersScoreFieldId,
   FlowersScoreSheetsByPlayer,
 } from "@/types/flowers-score";
+import type { Player } from "@/types/player";
 
 type FlowersScoreTableProps = {
   players: Player[];
@@ -28,7 +34,12 @@ type FlowersScoreTableProps = {
   rankingPlayers: FlowersRankingPlayer[];
   onAddRound: () => void;
   onChangePlayerName: (playerId: string, name: string) => void;
-  onChangeScore: (playerId: string, roundId: string, fieldId: FlowersScoreFieldId, value: number) => void;
+  onChangeScore: (
+    playerId: string,
+    roundId: string,
+    fieldId: FlowersScoreFieldId,
+    value: number,
+  ) => void;
   onRemovePlayer: (playerId: string) => void;
   onRemoveRound: (roundId: string) => void;
 };
@@ -40,7 +51,12 @@ type RoundSectionProps = {
   scoreSheets: FlowersScoreSheetsByPlayer;
   leaderPlayerId?: string;
   isCollapsed: boolean;
-  onChangeScore: (playerId: string, roundId: string, fieldId: FlowersScoreFieldId, value: number) => void;
+  onChangeScore: (
+    playerId: string,
+    roundId: string,
+    fieldId: FlowersScoreFieldId,
+    value: number,
+  ) => void;
   onToggleCollapsed: (roundId: string) => void;
   onRemoveRound: (round: FlowersRound) => void;
 };
@@ -72,15 +88,22 @@ function ScoreRowLabel({ field }: { field: FlowersScoreField }) {
       <div>
         <p className="font-medium text-foreground">{field.label}</p>
         {field.description ? (
-          <p className="text-xs leading-5 text-muted-foreground">{field.description}</p>
+          <p className="text-xs leading-5 text-muted-foreground">
+            {field.description}
+          </p>
         ) : null}
       </div>
     </div>
   );
 }
 
-function getRoundTotal(scoreSheets: FlowersScoreSheetsByPlayer, playerId: string, roundId: string) {
-  const roundSheet = scoreSheets[playerId]?.[roundId] ?? createEmptyFlowersScoreSheet();
+function getRoundTotal(
+  scoreSheets: FlowersScoreSheetsByPlayer,
+  playerId: string,
+  roundId: string,
+) {
+  const roundSheet =
+    scoreSheets[playerId]?.[roundId] ?? createEmptyFlowersScoreSheet();
   return calculateFlowersTotal(roundSheet);
 }
 
@@ -96,10 +119,13 @@ export function FlowersScoreTable({
   onRemoveRound,
 }: FlowersScoreTableProps) {
   const [collapsedRoundIds, setCollapsedRoundIds] = useState<string[]>([]);
-  const rankingByPlayerId = new Map(rankingPlayers.map((player) => [player.id, player]));
+  const rankingByPlayerId = new Map(
+    rankingPlayers.map((player) => [player.id, player]),
+  );
   const leader = rankingPlayers[0];
 
-  const isRoundCollapsed = (roundId: string) => collapsedRoundIds.includes(roundId);
+  const isRoundCollapsed = (roundId: string) =>
+    collapsedRoundIds.includes(roundId);
 
   const toggleRoundCollapsed = (roundId: string) => {
     setCollapsedRoundIds((currentIds) =>
@@ -158,8 +184,8 @@ export function FlowersScoreTable({
               Feuille de marque Flowers
             </CardTitle>
             <CardDescription>
-              Les joueurs sont en colonnes. Chaque manche garde ses scores, son total et alimente le
-              cumul final.
+              Les joueurs sont en colonnes. Chaque manche garde ses scores, son
+              total et alimente le cumul final.
             </CardDescription>
           </div>
 
@@ -226,13 +252,19 @@ export function FlowersScoreTable({
                         <div className="space-y-2">
                           <Input
                             value={player.name}
-                            onChange={(event) => onChangePlayerName(player.id, event.target.value)}
+                            onChange={(event) =>
+                              onChangePlayerName(player.id, event.target.value)
+                            }
                             placeholder="Nom du joueur"
                             aria-label={`Nom du joueur ${player.id}`}
                           />
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>Classement #{playerRanking?.rank ?? "-"}</span>
-                            <span>Cumul {playerRanking?.cumulativeTotal ?? 0}</span>
+                            <span>
+                              Classement #{playerRanking?.rank ?? "-"}
+                            </span>
+                            <span>
+                              Cumul {playerRanking?.cumulativeTotal ?? 0}
+                            </span>
                           </div>
                         </div>
 
@@ -297,7 +329,9 @@ export function FlowersScoreTable({
                         <p className="text-xs uppercase tracking-wide text-primary-foreground/80">
                           Cumul
                         </p>
-                        <p className="text-3xl font-semibold">{cumulativeTotal}</p>
+                        <p className="text-3xl font-semibold">
+                          {cumulativeTotal}
+                        </p>
                       </div>
                     </td>
                   );
@@ -331,7 +365,8 @@ function MobilePlayersSection({
       <div className="space-y-1">
         <p className="text-sm font-semibold text-foreground">Joueurs</p>
         <p className="text-xs text-muted-foreground">
-          Renomme les joueurs et retrouve leur cumul sans scroller horizontalement.
+          Renomme les joueurs et retrouve leur cumul sans scroller
+          horizontalement.
         </p>
       </div>
 
@@ -353,7 +388,9 @@ function MobilePlayersSection({
                   <div className="min-w-0 flex-1 space-y-2">
                     <Input
                       value={player.name}
-                      onChange={(event) => onChangePlayerName(player.id, event.target.value)}
+                      onChange={(event) =>
+                        onChangePlayerName(player.id, event.target.value)
+                      }
                       placeholder="Nom du joueur"
                       aria-label={`Nom du joueur ${player.id}`}
                     />
@@ -402,7 +439,9 @@ function MobileRoundSection({
     <section className="space-y-3 rounded-3xl border border-border bg-card p-4 text-card-foreground">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <p className="text-base font-semibold text-foreground">{round.name}</p>
+          <p className="text-base font-semibold text-foreground">
+            {round.name}
+          </p>
           <p className="text-xs text-muted-foreground">
             {isCollapsed
               ? "Manche repliee. Les totaux restent visibles."
@@ -446,8 +485,12 @@ function MobileRoundSection({
                   isLeader && "border-primary bg-primary/5",
                 )}
               >
-                <p className="font-medium text-foreground">{player.name || "Sans nom"}</p>
-                <p className="text-xl font-semibold text-foreground">{roundTotal.finalTotal}</p>
+                <p className="font-medium text-foreground">
+                  {player.name || "Sans nom"}
+                </p>
+                <p className="text-xl font-semibold text-foreground">
+                  {roundTotal.finalTotal}
+                </p>
               </div>
             );
           })}
@@ -455,7 +498,9 @@ function MobileRoundSection({
       ) : (
         <div className="space-y-3">
           {players.map((player) => {
-            const roundSheet = scoreSheets[player.id]?.[round.id] ?? createEmptyFlowersScoreSheet();
+            const roundSheet =
+              scoreSheets[player.id]?.[round.id] ??
+              createEmptyFlowersScoreSheet();
             const roundTotal = calculateFlowersTotal(roundSheet);
             const isLeader = leaderPlayerId === player.id;
 
@@ -469,13 +514,21 @@ function MobileRoundSection({
               >
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-foreground">{player.name || "Sans nom"}</p>
-                    <p className="text-xs text-muted-foreground">{round.name}</p>
+                    <p className="font-semibold text-foreground">
+                      {player.name || "Sans nom"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {round.name}
+                    </p>
                   </div>
 
                   <div className="text-right">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Total</p>
-                    <p className="text-2xl font-semibold text-foreground">{roundTotal.finalTotal}</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Total
+                    </p>
+                    <p className="text-2xl font-semibold text-foreground">
+                      {roundTotal.finalTotal}
+                    </p>
                   </div>
                 </div>
 
@@ -492,7 +545,9 @@ function MobileRoundSection({
                         {field.kind === "color" ? (
                           <span
                             className="size-3 rounded-full border border-black/10 shadow-sm"
-                            style={{ backgroundColor: field.accentColor ?? "#CBD5E1" }}
+                            style={{
+                              backgroundColor: field.accentColor ?? "#CBD5E1",
+                            }}
                             aria-hidden="true"
                           />
                         ) : null}
@@ -508,7 +563,10 @@ function MobileRoundSection({
                             player.id,
                             round.id,
                             field.id,
-                            parseNumericValue(event.target.value, field.min ?? 0),
+                            parseNumericValue(
+                              event.target.value,
+                              field.min ?? 0,
+                            ),
                           )
                         }
                       />
@@ -541,12 +599,17 @@ function MobileCumulativeSection({
     <section className="space-y-3 rounded-3xl bg-primary p-4 text-primary-foreground">
       <div>
         <p className="font-semibold">Total cumule</p>
-        <p className="text-xs text-primary-foreground/80">Somme de toutes les manches</p>
+        <p className="text-xs text-primary-foreground/80">
+          Somme de toutes les manches
+        </p>
       </div>
 
       <div className="space-y-2">
         {players.map((player) => {
-          const cumulativeTotal = calculateFlowersCumulativeTotal(rounds, scoreSheets[player.id]);
+          const cumulativeTotal = calculateFlowersCumulativeTotal(
+            rounds,
+            scoreSheets[player.id],
+          );
           const isLeader = leaderPlayerId === player.id;
 
           return (
@@ -558,12 +621,16 @@ function MobileCumulativeSection({
               )}
             >
               <div>
-                <p className="font-medium text-primary-foreground">{player.name || "Sans nom"}</p>
+                <p className="font-medium text-primary-foreground">
+                  {player.name || "Sans nom"}
+                </p>
                 <p className="text-xs text-primary-foreground/80">
                   {isLeader ? "Leader actuel" : "Total partie"}
                 </p>
               </div>
-              <p className="text-2xl font-semibold text-primary-foreground">{cumulativeTotal}</p>
+              <p className="text-2xl font-semibold text-primary-foreground">
+                {cumulativeTotal}
+              </p>
             </div>
           );
         })}
@@ -586,10 +653,15 @@ function DesktopRoundSection({
   return (
     <>
       <tr>
-        <td colSpan={players.length + 1} className="border-t border-border/60 bg-muted/35 px-4 py-4">
+        <td
+          colSpan={players.length + 1}
+          className="border-t border-border/60 bg-muted/35 px-4 py-4"
+        >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-foreground">{round.name}</p>
+              <p className="text-sm font-semibold text-foreground">
+                {round.name}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {isCollapsed
                   ? "Manche repliee. Les totaux restent visibles."
@@ -598,7 +670,11 @@ function DesktopRoundSection({
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button variant="outline" size="sm" onClick={() => onToggleCollapsed(round.id)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onToggleCollapsed(round.id)}
+              >
                 {isCollapsed ? "Deplier la manche" : "Replier la manche"}
               </Button>
 
@@ -620,7 +696,9 @@ function DesktopRoundSection({
           <td className="sticky left-0 z-10 border-t border-border/60 bg-secondary px-4 py-4 text-secondary-foreground">
             <div>
               <p className="font-semibold">Total manche</p>
-              <p className="text-xs text-secondary-foreground/80">Resume de la manche repliee</p>
+              <p className="text-xs text-secondary-foreground/80">
+                Resume de la manche repliee
+              </p>
             </div>
           </td>
 
@@ -632,10 +710,13 @@ function DesktopRoundSection({
                 key={`${round.id}-collapsed-total-${player.id}`}
                 className={cn(
                   "border-l border-t border-border/60 bg-secondary px-4 py-4 text-center text-secondary-foreground",
-                  leaderPlayerId === player.id && "bg-primary/10 text-foreground",
+                  leaderPlayerId === player.id &&
+                    "bg-primary/10 text-foreground",
                 )}
               >
-                <p className="text-2xl font-semibold">{roundTotal.finalTotal}</p>
+                <p className="text-2xl font-semibold">
+                  {roundTotal.finalTotal}
+                </p>
               </td>
             );
           })}
@@ -686,17 +767,23 @@ function DesktopRoundSection({
             </td>
 
             {players.map((player) => {
-              const roundTotal = getRoundTotal(scoreSheets, player.id, round.id);
+              const roundTotal = getRoundTotal(
+                scoreSheets,
+                player.id,
+                round.id,
+              );
 
               return (
                 <td
                   key={`${round.id}-total-${player.id}`}
                   className={cn(
                     "border-l border-t border-border/60 bg-secondary px-4 py-4 text-center text-secondary-foreground",
-                    leaderPlayerId === player.id && "bg-primary/10 text-foreground",
+                    leaderPlayerId === player.id && "",
                   )}
                 >
-                  <p className="text-2xl font-semibold">{roundTotal.finalTotal}</p>
+                  <p className="text-2xl font-semibold">
+                    {roundTotal.finalTotal}
+                  </p>
                 </td>
               );
             })}

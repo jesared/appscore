@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 
 type AddPlayerFormProps = {
   onAddPlayer: (name: string) => void;
+  description?: string;
   isDisabled?: boolean;
   placeholder?: string;
 };
 
 export function AddPlayerForm({
   onAddPlayer,
+  description = "Ajoute rapidement des participants avant de commencer la saisie des scores.",
   isDisabled = false,
   placeholder = "Nom du joueur",
 }: AddPlayerFormProps) {
@@ -36,9 +38,7 @@ export function AddPlayerForm({
     <Card>
       <CardHeader>
         <CardTitle>Ajouter un joueur</CardTitle>
-        <CardDescription>
-          Ajoute rapidement des participants avant de commencer la saisie des scores.
-        </CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-3 sm:flex-row" onSubmit={handleSubmit}>

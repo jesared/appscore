@@ -1,5 +1,6 @@
-import { prisma } from "@/lib/prisma";
 import { createEmptyFlowersScoreSheet } from "@/lib/flowers-score";
+import { FLOWERS_MAX_PLAYERS } from "@/lib/flowers-score";
+import { prisma } from "@/lib/prisma";
 import type {
   FlowersPartySnapshot,
   FlowersPartySummary,
@@ -25,6 +26,7 @@ type PersistedPartyRound = {
 function toPartySummary(party: {
   id: string;
   name: string;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   players: unknown[];
@@ -33,6 +35,7 @@ function toPartySummary(party: {
   return {
     id: party.id,
     name: party.name,
+    isActive: party.isActive,
     createdAt: party.createdAt.toISOString(),
     updatedAt: party.updatedAt.toISOString(),
     playerCount: party.players.length,
@@ -43,6 +46,7 @@ function toPartySummary(party: {
 function toPartySnapshot(party: {
   id: string;
   name: string;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   players: Array<{ clientId: string; name: string; position: number; id: string }>;
@@ -100,6 +104,7 @@ function toPartySnapshot(party: {
   return {
     id: party.id,
     name: party.name,
+    isActive: party.isActive,
     createdAt: party.createdAt.toISOString(),
     updatedAt: party.updatedAt.toISOString(),
     players,
@@ -110,9 +115,7 @@ function toPartySnapshot(party: {
 
 export async function listFlowersParties(): Promise<FlowersPartySummary[]> {
   const parties = await prisma.flowersParty.findMany({
-    orderBy: {
-      updatedAt: "desc",
-    },
+    orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
     take: 12,
     include: {
       players: true,
@@ -148,7 +151,71 @@ export async function getFlowersPartyById(id: string): Promise<FlowersPartySnaps
   return toPartySnapshot(party);
 }
 
+export async function setFlowersPartyActive(
+  id: string,
+  isActive: boolean,
+): Promise<FlowersPartySummary | null> {
+  const party = await prisma.flowersParty
+    .update({
+      where: { id },
+      data: { isActive },
+      include: {
+        players: true,
+        rounds: true,
+      },
+    })
+    .catch(() => null);
+
+  if (!party) {
+    return null;
+  }
+
+  return toPartySummary(party);
+}
+
+export async function renameFlowersParty(
+  id: string,
+  name: string,
+): Promise<FlowersPartySummary | null> {
+  const normalizedName = name.trim();
+
+  if (!normalizedName) {
+    throw new Error("Le nom de la partie ne peut pas etre vide.");
+  }
+
+  const party = await prisma.flowersParty
+    .update({
+      where: { id },
+      data: { name: normalizedName },
+      include: {
+        players: true,
+        rounds: true,
+      },
+    })
+    .catch(() => null);
+
+  if (!party) {
+    return null;
+  }
+
+  return toPartySummary(party);
+}
+
+export async function deleteFlowersParty(id: string): Promise<boolean> {
+  const deletedParty = await prisma.flowersParty
+    .delete({
+      where: { id },
+    })
+    .catch(() => null);
+
+  return deletedParty !== null;
+}
+
 export async function saveFlowersParty(input: SaveFlowersPartyInput): Promise<FlowersPartySnapshot> {
+  if (input.players.length > FLOWERS_MAX_PLAYERS) {
+    throw new Error(`Flowers est limite a ${FLOWERS_MAX_PLAYERS} joueurs par partie.`);
+  }
+
   const normalizedName = input.name.trim() || "Partie Flowers";
 
   const party = await prisma.$transaction(async (tx: TransactionClient) => {

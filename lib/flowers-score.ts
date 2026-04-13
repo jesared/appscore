@@ -9,6 +9,8 @@ import type {
   FlowersScoreSheetsByPlayer,
 } from "@/types/flowers-score";
 
+export const FLOWERS_MAX_PLAYERS = 4;
+
 export function createEmptyFlowersScoreSheet(): FlowersScoreSheet {
   return {
     blueScore: 0,

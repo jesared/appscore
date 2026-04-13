@@ -4,6 +4,7 @@ import type { Player } from "@/types/player";
 export type FlowersPartySummary = {
   id: string;
   name: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
   playerCount: number;
@@ -13,6 +14,7 @@ export type FlowersPartySummary = {
 export type FlowersPartySnapshot = {
   id: string;
   name: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
   players: Player[];

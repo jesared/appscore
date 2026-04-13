@@ -7,16 +7,29 @@ import { FlowersPartyStoragePanel } from "@/components/flowers/flowers-party-sto
 import { FlowersRankingList } from "@/components/flowers/flowers-ranking-list";
 import { FlowersScoreTable } from "@/components/flowers/flowers-score-table";
 import { AddPlayerForm } from "@/components/players/add-player-form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { buildFlowersRanking, createEmptyFlowersScoreSheet } from "@/lib/flowers-score";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  FLOWERS_MAX_PLAYERS,
+  buildFlowersRanking,
+  createEmptyFlowersScoreSheet,
+} from "@/lib/flowers-score";
 import { createEntityId } from "@/lib/score/ids";
-import type { FlowersPartySnapshot, FlowersPartySummary } from "@/types/flowers-party";
-import type { Player } from "@/types/player";
+import type {
+  FlowersPartySnapshot,
+  FlowersPartySummary,
+} from "@/types/flowers-party";
 import type {
   FlowersRound,
   FlowersScoreFieldId,
   FlowersScoreSheetsByPlayer,
 } from "@/types/flowers-score";
+import type { Player } from "@/types/player";
 
 function createRound(roundNumber: number): FlowersRound {
   return {
@@ -44,15 +57,34 @@ type FlowersPartyResponse = {
   party: FlowersPartySnapshot;
 };
 
+async function getApiErrorMessage(response: Response, fallbackMessage: string) {
+  try {
+    const payload = (await response.json()) as { message?: string };
+
+    if (payload.message) {
+      return payload.message;
+    }
+  } catch {
+    return fallbackMessage;
+  }
+
+  return fallbackMessage;
+}
+
 export default function HomePage() {
   const [partyId, setPartyId] = useState<string | undefined>();
   const [partyName, setPartyName] = useState("Partie Flowers");
   const [players, setPlayers] = useState<Player[]>([]);
-  const [rounds, setRounds] = useState<FlowersRound[]>(() => createInitialRounds());
-  const [scoreSheets, setScoreSheets] = useState<FlowersScoreSheetsByPlayer>({});
+  const [rounds, setRounds] = useState<FlowersRound[]>(() =>
+    createInitialRounds(),
+  );
+  const [scoreSheets, setScoreSheets] = useState<FlowersScoreSheetsByPlayer>(
+    {},
+  );
   const [savedParties, setSavedParties] = useState<FlowersPartySummary[]>([]);
   const [isLoadingParty, setIsLoadingParty] = useState(false);
   const [isSavingParty, setIsSavingParty] = useState(false);
+  const [isMutatingParty, setIsMutatingParty] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>();
 
   async function refreshSavedParties() {
@@ -62,7 +94,12 @@ export default function HomePage() {
     });
 
     if (!response.ok) {
-      throw new Error("Impossible de charger les parties sauvegardees.");
+      throw new Error(
+        await getApiErrorMessage(
+          response,
+          "Impossible de charger les parties sauvegardees.",
+        ),
+      );
     }
 
     const payload = (await response.json()) as FlowersPartiesResponse;
@@ -92,7 +129,9 @@ export default function HomePage() {
         await refreshSavedParties();
       } catch (error) {
         setStatusMessage(
-          error instanceof Error ? error.message : "Chargement initial impossible.",
+          error instanceof Error
+            ? error.message
+            : "Chargement initial impossible.",
         );
       }
     })();
@@ -109,14 +148,18 @@ export default function HomePage() {
       });
 
       if (!response.ok) {
-        throw new Error("Impossible de charger cette partie.");
+        throw new Error(
+          await getApiErrorMessage(response, "Impossible de charger cette partie."),
+        );
       }
 
       const payload = (await response.json()) as FlowersPartyResponse;
       applyPartySnapshot(payload.party);
       setStatusMessage(`Partie "${payload.party.name}" chargee.`);
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Chargement impossible.");
+      setStatusMessage(
+        error instanceof Error ? error.message : "Chargement impossible.",
+      );
     } finally {
       setIsLoadingParty(false);
     }
@@ -142,7 +185,9 @@ export default function HomePage() {
       });
 
       if (!response.ok) {
-        throw new Error("La sauvegarde a echoue.");
+        throw new Error(
+          await getApiErrorMessage(response, "La sauvegarde a echoue."),
+        );
       }
 
       const payload = (await response.json()) as FlowersPartyResponse;
@@ -150,18 +195,151 @@ export default function HomePage() {
       await refreshSavedParties();
       setStatusMessage(`Partie "${payload.party.name}" sauvegardee.`);
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Sauvegarde impossible.");
+      setStatusMessage(
+        error instanceof Error ? error.message : "Sauvegarde impossible.",
+      );
     } finally {
       setIsSavingParty(false);
     }
   }
 
+  async function handleTogglePartyActive(targetPartyId: string, isActive: boolean) {
+    setIsMutatingParty(true);
+    setStatusMessage(undefined);
+
+    try {
+      const response = await fetch(`/api/flowers-parties/${targetPartyId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isActive }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await getApiErrorMessage(
+            response,
+            "Impossible de mettre a jour le statut de la partie.",
+          ),
+        );
+      }
+
+      await refreshSavedParties();
+
+      const targetParty = savedParties.find((party) => party.id === targetPartyId);
+      const actionLabel = isActive ? "reactivee" : "desactivee";
+      setStatusMessage(
+        `Partie "${targetParty?.name ?? "Flowers"}" ${actionLabel}.`,
+      );
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Mise a jour de la partie impossible.",
+      );
+    } finally {
+      setIsMutatingParty(false);
+    }
+  }
+
+  async function handleRenameParty(targetPartyId: string, nextName: string) {
+    const normalizedName = nextName.trim();
+
+    if (!normalizedName) {
+      setStatusMessage("Le nom de la partie ne peut pas etre vide.");
+      return;
+    }
+
+    setIsMutatingParty(true);
+    setStatusMessage(undefined);
+
+    try {
+      const response = await fetch(`/api/flowers-parties/${targetPartyId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: normalizedName }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await getApiErrorMessage(
+            response,
+            "Impossible de renommer la partie.",
+          ),
+        );
+      }
+
+      if (partyId === targetPartyId) {
+        setPartyName(normalizedName);
+      }
+
+      await refreshSavedParties();
+      setStatusMessage(`Partie renommee en "${normalizedName}".`);
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : "Renommage impossible.",
+      );
+    } finally {
+      setIsMutatingParty(false);
+    }
+  }
+
+  async function handleDeleteParty(targetPartyId: string) {
+    setIsMutatingParty(true);
+    setStatusMessage(undefined);
+
+    try {
+      const response = await fetch(`/api/flowers-parties/${targetPartyId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await getApiErrorMessage(
+            response,
+            "Impossible de supprimer la partie.",
+          ),
+        );
+      }
+
+      const deletedParty = savedParties.find((party) => party.id === targetPartyId);
+
+      if (partyId === targetPartyId) {
+        resetParty();
+      }
+
+      await refreshSavedParties();
+      setStatusMessage(
+        `Partie "${deletedParty?.name ?? "Flowers"}" supprimee.`,
+      );
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : "Suppression impossible.",
+      );
+    } finally {
+      setIsMutatingParty(false);
+    }
+  }
+
   function handleAddPlayer(name: string) {
+    if (players.length >= FLOWERS_MAX_PLAYERS) {
+      setStatusMessage(
+        `Une partie Flowers est limitee a ${FLOWERS_MAX_PLAYERS} joueurs.`,
+      );
+      return;
+    }
+
     const playerId = createEntityId("player");
-    const playerScoreSheets = rounds.reduce<FlowersScoreSheetsByPlayer[string]>((scores, round) => {
-      scores[round.id] = createEmptyFlowersScoreSheet();
-      return scores;
-    }, {});
+    const playerScoreSheets = rounds.reduce<FlowersScoreSheetsByPlayer[string]>(
+      (scores, round) => {
+        scores[round.id] = createEmptyFlowersScoreSheet();
+        return scores;
+      },
+      {},
+    );
 
     setPlayers((currentPlayers) => [
       ...currentPlayers,
@@ -175,6 +353,8 @@ export default function HomePage() {
       ...currentScoreSheets,
       [playerId]: playerScoreSheets,
     }));
+
+    setStatusMessage(undefined);
   }
 
   function handleChangePlayerName(playerId: string, name: string) {
@@ -193,7 +373,9 @@ export default function HomePage() {
   }
 
   function handleRemovePlayer(playerId: string) {
-    setPlayers((currentPlayers) => currentPlayers.filter((player) => player.id !== playerId));
+    setPlayers((currentPlayers) =>
+      currentPlayers.filter((player) => player.id !== playerId),
+    );
 
     setScoreSheets((currentScoreSheets) => {
       const nextScoreSheets = { ...currentScoreSheets };
@@ -209,7 +391,9 @@ export default function HomePage() {
     setScoreSheets((currentScoreSheets) => {
       const nextScoreSheets: FlowersScoreSheetsByPlayer = {};
 
-      for (const [playerId, playerRounds] of Object.entries(currentScoreSheets)) {
+      for (const [playerId, playerRounds] of Object.entries(
+        currentScoreSheets,
+      )) {
         nextScoreSheets[playerId] = {
           ...playerRounds,
           [nextRound.id]: createEmptyFlowersScoreSheet(),
@@ -226,13 +410,17 @@ export default function HomePage() {
         return currentRounds;
       }
 
-      return renameRounds(currentRounds.filter((round) => round.id !== roundId));
+      return renameRounds(
+        currentRounds.filter((round) => round.id !== roundId),
+      );
     });
 
     setScoreSheets((currentScoreSheets) => {
       const nextScoreSheets: FlowersScoreSheetsByPlayer = {};
 
-      for (const [playerId, playerRounds] of Object.entries(currentScoreSheets)) {
+      for (const [playerId, playerRounds] of Object.entries(
+        currentScoreSheets,
+      )) {
         const nextRounds = { ...playerRounds };
         delete nextRounds[roundId];
         nextScoreSheets[playerId] = nextRounds;
@@ -253,7 +441,8 @@ export default function HomePage() {
       [playerId]: {
         ...(currentScoreSheets[playerId] ?? {}),
         [roundId]: {
-          ...(currentScoreSheets[playerId]?.[roundId] ?? createEmptyFlowersScoreSheet()),
+          ...(currentScoreSheets[playerId]?.[roundId] ??
+            createEmptyFlowersScoreSheet()),
           [fieldId]: value,
         },
       },
@@ -262,6 +451,7 @@ export default function HomePage() {
 
   const rankingPlayers = buildFlowersRanking(players, rounds, scoreSheets);
   const leader = rankingPlayers[0];
+  const isPlayerLimitReached = players.length >= FLOWERS_MAX_PLAYERS;
 
   return (
     <main className="container py-8 md:py-12">
@@ -274,10 +464,13 @@ export default function HomePage() {
                   <p className="text-sm font-medium uppercase tracking-[0.24em] text-primary">
                     Feuille de marque numerique
                   </p>
-                  <CardTitle className="font-display text-4xl md:text-5xl">Flowers</CardTitle>
+                  <CardTitle className="font-display text-4xl md:text-5xl">
+                    Flowers
+                  </CardTitle>
                   <CardDescription className="max-w-2xl text-base">
-                    Une feuille de marque multi-manches, simple a remplir, avec total cumule,
-                    classement final et sauvegarde en base Postgres.
+                    Une feuille de marque multi-manches, simple a remplir, avec
+                    total cumule, classement final et sauvegarde en base
+                    Postgres.
                   </CardDescription>
                 </div>
                 <ThemeToggle />
@@ -289,17 +482,22 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle>Vue d&apos;ensemble</CardTitle>
               <CardDescription>
-                Chaque manche calcule un total. Le classement final additionne toutes les manches.
+                Chaque manche calcule un total. Le classement final additionne
+                toutes les manches.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-foreground">
               <p>Score couleurs = Bleu + Jaune + Rouge + Vert</p>
               <p>Total manche = Score couleurs + Bonus papillon - Malus</p>
               <p>Total cumule = Somme de toutes les manches</p>
-              <div className="rounded-2xl bg-secondary p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Leader actuel</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {leader ? `${leader.name || "Sans nom"} (${leader.cumulativeTotal})` : "Aucun"}
+              <div className="rounded-2xl bg-accent p-4">
+                <p className="text-xs uppercase tracking-wide text-accent-foreground">
+                  Leader actuel
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-accent-foreground">
+                  {leader
+                    ? `${leader.name || "Sans nom"} (${leader.cumulativeTotal})`
+                    : "Aucun"}
                 </p>
               </div>
             </CardContent>
@@ -310,16 +508,29 @@ export default function HomePage() {
           activePartyId={partyId}
           isLoadingParty={isLoadingParty}
           isSavingParty={isSavingParty}
+          isMutatingParty={isMutatingParty}
           partyName={partyName}
           savedParties={savedParties}
           statusMessage={statusMessage}
           onChangePartyName={setPartyName}
           onCreateParty={resetParty}
+          onDeleteParty={handleDeleteParty}
           onLoadParty={handleLoadParty}
+          onRenameParty={handleRenameParty}
           onSaveParty={handleSaveParty}
+          onTogglePartyActive={handleTogglePartyActive}
         />
 
-        <AddPlayerForm onAddPlayer={handleAddPlayer} placeholder="Nom du joueur" />
+        <AddPlayerForm
+          description={
+            isPlayerLimitReached
+              ? `Limite atteinte: Flowers se joue jusqu'a ${FLOWERS_MAX_PLAYERS} joueurs.`
+              : `Ajoute jusqu'a ${FLOWERS_MAX_PLAYERS} joueurs pour cette partie Flowers.`
+          }
+          isDisabled={isPlayerLimitReached}
+          onAddPlayer={handleAddPlayer}
+          placeholder="Nom du joueur"
+        />
 
         <FlowersScoreTable
           players={players}

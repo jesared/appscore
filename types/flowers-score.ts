@@ -40,6 +40,7 @@ export type FlowersScoreCalculation = {
 export type FlowersRound = {
   id: string;
   name: string;
+  note?: string;
 };
 
 export type FlowersRoundScoreSheets = Record<string, FlowersScoreSheet>;

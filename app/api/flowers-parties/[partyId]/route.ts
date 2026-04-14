@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
-
+import { getRequiredGame } from "@/lib/games/registry";
 import {
-  deleteFlowersParty,
-  getFlowersPartyById,
-  renameFlowersParty,
-  setFlowersPartyActive,
-} from "@/lib/flowers-parties";
+  deleteRegisteredGameSession,
+  getRegisteredGameSessionById,
+  updateRegisteredGameSession,
+} from "@/lib/games/session-api";
+
+const flowersGame = getRequiredGame("flowers");
 
 type RouteContext = {
   params: Promise<{
@@ -14,78 +14,19 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, context: RouteContext) {
-  try {
-    const { partyId } = await context.params;
-    const party = await getFlowersPartyById(partyId);
+  const { partyId } = await context.params;
 
-    if (!party) {
-      return NextResponse.json({ message: "Partie introuvable." }, { status: 404 });
-    }
-
-    return NextResponse.json({ party });
-  } catch {
-    return NextResponse.json(
-      { message: "Chargement de la partie impossible." },
-      { status: 503 },
-    );
-  }
+  return getRegisteredGameSessionById(flowersGame, partyId);
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  try {
-    const { partyId } = await context.params;
-    const payload = (await request.json()) as { isActive?: boolean; name?: string };
+  const { partyId } = await context.params;
 
-    if (typeof payload?.name === "string") {
-      const party = await renameFlowersParty(partyId, payload.name);
-
-      if (!party) {
-        return NextResponse.json({ message: "Partie introuvable." }, { status: 404 });
-      }
-
-      return NextResponse.json({ party });
-    }
-
-    if (typeof payload?.isActive !== "boolean") {
-      return NextResponse.json(
-        { message: "Mise a jour de partie invalide." },
-        { status: 400 },
-      );
-    }
-
-    const party = await setFlowersPartyActive(partyId, payload.isActive);
-
-    if (!party) {
-      return NextResponse.json({ message: "Partie introuvable." }, { status: 404 });
-    }
-
-    return NextResponse.json({ party });
-  } catch (error) {
-    if (error instanceof Error) {
-      return NextResponse.json({ message: error.message }, { status: 400 });
-    }
-
-    return NextResponse.json(
-      { message: "Mise a jour de la partie impossible." },
-      { status: 503 },
-    );
-  }
+  return updateRegisteredGameSession(flowersGame, partyId, request);
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  try {
-    const { partyId } = await context.params;
-    const wasDeleted = await deleteFlowersParty(partyId);
+  const { partyId } = await context.params;
 
-    if (!wasDeleted) {
-      return NextResponse.json({ message: "Partie introuvable." }, { status: 404 });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json(
-      { message: "Suppression de la partie impossible." },
-      { status: 503 },
-    );
-  }
+  return deleteRegisteredGameSession(flowersGame, partyId);
 }

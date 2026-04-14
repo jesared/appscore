@@ -1,317 +1,304 @@
-import { createEmptyFlowersScoreSheet } from "@/lib/flowers-score";
-import { FLOWERS_MAX_PLAYERS } from "@/lib/flowers-score";
-import { prisma } from "@/lib/prisma";
+import {
+  deleteGameSession,
+  getGameSessionById,
+  listGameSessionRecords,
+  saveGameSession,
+  updateGameSessionMetadata,
+} from "@/lib/game-sessions";
+import {
+  FLOWERS_MAX_PLAYERS,
+  createEmptyFlowersScoreSheet,
+} from "@/lib/flowers-score";
+import type {
+  GameSessionRecord,
+  GameSessionSummary,
+} from "@/types/game-session";
 import type {
   FlowersPartySnapshot,
   FlowersPartySummary,
   SaveFlowersPartyInput,
 } from "@/types/flowers-party";
-import type { FlowersScoreSheetsByPlayer } from "@/types/flowers-score";
+import type {
+  FlowersRound,
+  FlowersScoreSheet,
+  FlowersScoreSheetsByPlayer,
+} from "@/types/flowers-score";
+import type { Player } from "@/types/player";
 
-type TransactionClient = Omit<
-  typeof prisma,
-  "$connect" | "$disconnect" | "$extends" | "$on" | "$transaction" | "$use"
->;
+const FLOWERS_GAME_SLUG = "flowers" as const;
 
-type PersistedPartyPlayer = {
-  id: string;
-  clientId: string;
+type FlowersPartyData = {
+  players: Player[];
+  rounds: FlowersRound[];
+  scoreSheets: FlowersScoreSheetsByPlayer;
 };
 
-type PersistedPartyRound = {
-  id: string;
-  clientId: string;
-};
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
-function toPartySummary(party: {
-  id: string;
-  name: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  players: unknown[];
-  rounds: unknown[];
-}): FlowersPartySummary {
+function normalizeText(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function normalizeNonNegativeNumber(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0;
+  }
+
+  return value < 0 ? 0 : value;
+}
+
+function normalizeFlowersScoreSheet(value: unknown): FlowersScoreSheet {
+  const input = isRecord(value) ? value : {};
+
   return {
-    id: party.id,
-    name: party.name,
-    isActive: party.isActive,
-    createdAt: party.createdAt.toISOString(),
-    updatedAt: party.updatedAt.toISOString(),
-    playerCount: party.players.length,
-    roundCount: party.rounds.length,
+    blueScore: normalizeNonNegativeNumber(input.blueScore),
+    yellowScore: normalizeNonNegativeNumber(input.yellowScore),
+    redScore: normalizeNonNegativeNumber(input.redScore),
+    greenScore: normalizeNonNegativeNumber(input.greenScore),
+    butterflyScore: normalizeNonNegativeNumber(input.butterflyScore),
+    invalidCards: normalizeNonNegativeNumber(input.invalidCards),
   };
 }
 
-function toPartySnapshot(party: {
-  id: string;
-  name: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  players: Array<{ clientId: string; name: string; position: number; id: string }>;
-  rounds: Array<{ clientId: string; name: string; position: number; id: string }>;
-  scores: Array<{
-    playerId: string;
-    roundId: string;
-    blueScore: number;
-    yellowScore: number;
-    redScore: number;
-    greenScore: number;
-    butterflyScore: number;
-    invalidCards: number;
-  }>;
-}): FlowersPartySnapshot {
-  const players = [...party.players]
-    .sort((left, right) => left.position - right.position)
-    .map((player) => ({
-      id: player.clientId,
-      name: player.name,
-    }));
-
-  const rounds = [...party.rounds]
-    .sort((left, right) => left.position - right.position)
-    .map((round) => ({
-      id: round.clientId,
-      name: round.name,
-    }));
-
-  const scoreSheets: FlowersScoreSheetsByPlayer = Object.fromEntries(
-    players.map((player) => [player.id, Object.fromEntries(rounds.map((round) => [round.id, createEmptyFlowersScoreSheet()]))]),
-  );
-
-  const playerClientIds = new Map(party.players.map((player) => [player.id, player.clientId]));
-  const roundClientIds = new Map(party.rounds.map((round) => [round.id, round.clientId]));
-
-  for (const score of party.scores) {
-    const playerClientId = playerClientIds.get(score.playerId);
-    const roundClientId = roundClientIds.get(score.roundId);
-
-    if (!playerClientId || !roundClientId) {
-      continue;
-    }
-
-    scoreSheets[playerClientId][roundClientId] = {
-      blueScore: score.blueScore,
-      yellowScore: score.yellowScore,
-      redScore: score.redScore,
-      greenScore: score.greenScore,
-      butterflyScore: score.butterflyScore,
-      invalidCards: score.invalidCards,
-    };
+function normalizePlayers(value: unknown): Player[] {
+  if (!Array.isArray(value)) {
+    return [];
   }
 
+  return value.flatMap((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== "string") {
+      return [];
+    }
+
+    return [
+      {
+        id: entry.id,
+        name: normalizeText(entry.name),
+      },
+    ];
+  });
+}
+
+function normalizeRounds(value: unknown): FlowersRound[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry, index) => {
+    if (!isRecord(entry) || typeof entry.id !== "string") {
+      return [];
+    }
+
+    const name = normalizeText(entry.name).trim() || `Manche ${index + 1}`;
+
+    return [
+      {
+        id: entry.id,
+        name,
+        note: typeof entry.note === "string" ? entry.note : undefined,
+      },
+    ];
+  });
+}
+
+function normalizeScoreSheets(
+  players: Player[],
+  rounds: FlowersRound[],
+  value: unknown,
+): FlowersScoreSheetsByPlayer {
+  const input: Record<string, unknown> = isRecord(value) ? value : {};
+  const output: FlowersScoreSheetsByPlayer = {};
+
+  for (const player of players) {
+    const rawPlayerScores = input[player.id];
+    const playerScores: Record<string, unknown> = isRecord(rawPlayerScores)
+      ? rawPlayerScores
+      : {};
+
+    output[player.id] = {};
+
+    for (const round of rounds) {
+      output[player.id][round.id] = normalizeFlowersScoreSheet(
+        playerScores[round.id],
+      );
+    }
+  }
+
+  return output;
+}
+
+function normalizeFlowersPartyData(data: unknown): FlowersPartyData {
+  const input = isRecord(data) ? data : {};
+  const players = normalizePlayers(input.players);
+  const rounds = normalizeRounds(input.rounds);
+  const scoreSheets = normalizeScoreSheets(players, rounds, input.scoreSheets);
+
   return {
-    id: party.id,
-    name: party.name,
-    isActive: party.isActive,
-    createdAt: party.createdAt.toISOString(),
-    updatedAt: party.updatedAt.toISOString(),
     players,
     rounds,
     scoreSheets,
   };
 }
 
-export async function listFlowersParties(): Promise<FlowersPartySummary[]> {
-  const parties = await prisma.flowersParty.findMany({
-    orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
-    take: 12,
-    include: {
-      players: true,
-      rounds: true,
-    },
-  });
-
-  return parties.map(toPartySummary);
+function toFlowersPartySummary(session: GameSessionSummary): FlowersPartySummary {
+  return {
+    id: session.id,
+    name: session.name,
+    gameSlug: FLOWERS_GAME_SLUG,
+    isActive: session.isActive,
+    isFinished: session.isFinished,
+    createdAt: session.createdAt,
+    finishedAt: session.finishedAt,
+    updatedAt: session.updatedAt,
+    playerCount: 0,
+    roundCount: 0,
+  };
 }
 
-export async function getFlowersPartyById(id: string): Promise<FlowersPartySnapshot | null> {
-  const party = await prisma.flowersParty.findUnique({
-    where: { id },
-    include: {
-      players: {
-        orderBy: {
-          position: "asc",
-        },
-      },
-      rounds: {
-        orderBy: {
-          position: "asc",
-        },
-      },
-      scores: true,
-    },
-  });
+function toFlowersPartySnapshot(
+  session: GameSessionRecord<FlowersPartyData>,
+): FlowersPartySnapshot {
+  return {
+    id: session.id,
+    name: session.name,
+    gameSlug: FLOWERS_GAME_SLUG,
+    isActive: session.isActive,
+    isFinished: session.isFinished,
+    createdAt: session.createdAt,
+    finishedAt: session.finishedAt,
+    updatedAt: session.updatedAt,
+    players: session.data.players,
+    rounds: session.data.rounds,
+    scoreSheets: session.data.scoreSheets,
+  };
+}
 
-  if (!party) {
+export async function listFlowersParties(): Promise<FlowersPartySummary[]> {
+  const sessions = await listGameSessionRecords<unknown>(FLOWERS_GAME_SLUG);
+
+  return sessions.map((session) => {
+    const data = normalizeFlowersPartyData(session.data);
+
+    return {
+      ...toFlowersPartySummary(session),
+      playerCount: data.players.length,
+      roundCount: data.rounds.length,
+    };
+  });
+}
+
+export async function getFlowersPartyById(
+  id: string,
+): Promise<FlowersPartySnapshot | null> {
+  const session = await getGameSessionById<unknown>(id);
+
+  if (!session || session.gameSlug !== FLOWERS_GAME_SLUG) {
     return null;
   }
 
-  return toPartySnapshot(party);
+  const data = normalizeFlowersPartyData(session.data);
+
+  return toFlowersPartySnapshot({
+    ...session,
+    data,
+  });
 }
 
 export async function setFlowersPartyActive(
   id: string,
   isActive: boolean,
 ): Promise<FlowersPartySummary | null> {
-  const party = await prisma.flowersParty
-    .update({
-      where: { id },
-      data: { isActive },
-      include: {
-        players: true,
-        rounds: true,
-      },
-    })
-    .catch(() => null);
+  const session = await updateGameSessionMetadata(id, { isActive });
 
-  if (!party) {
+  if (!session || session.gameSlug !== FLOWERS_GAME_SLUG) {
     return null;
   }
 
-  return toPartySummary(party);
+  const snapshot = await getFlowersPartyById(id);
+
+  return snapshot
+    ? {
+        ...toFlowersPartySummary(session),
+        playerCount: snapshot.players.length,
+        roundCount: snapshot.rounds.length,
+      }
+    : {
+        ...toFlowersPartySummary(session),
+        playerCount: 0,
+        roundCount: 0,
+      };
 }
 
 export async function renameFlowersParty(
   id: string,
   name: string,
 ): Promise<FlowersPartySummary | null> {
-  const normalizedName = name.trim();
+  const session = await updateGameSessionMetadata(id, { name });
 
-  if (!normalizedName) {
-    throw new Error("Le nom de la partie ne peut pas etre vide.");
-  }
-
-  const party = await prisma.flowersParty
-    .update({
-      where: { id },
-      data: { name: normalizedName },
-      include: {
-        players: true,
-        rounds: true,
-      },
-    })
-    .catch(() => null);
-
-  if (!party) {
+  if (!session || session.gameSlug !== FLOWERS_GAME_SLUG) {
     return null;
   }
 
-  return toPartySummary(party);
+  const snapshot = await getFlowersPartyById(id);
+
+  return snapshot
+    ? {
+        ...toFlowersPartySummary(session),
+        playerCount: snapshot.players.length,
+        roundCount: snapshot.rounds.length,
+      }
+    : {
+        ...toFlowersPartySummary(session),
+        playerCount: 0,
+        roundCount: 0,
+      };
 }
 
 export async function deleteFlowersParty(id: string): Promise<boolean> {
-  const deletedParty = await prisma.flowersParty
-    .delete({
-      where: { id },
-    })
-    .catch(() => null);
-
-  return deletedParty !== null;
+  return deleteGameSession(id);
 }
 
-export async function saveFlowersParty(input: SaveFlowersPartyInput): Promise<FlowersPartySnapshot> {
+export async function saveFlowersParty(
+  input: SaveFlowersPartyInput,
+): Promise<FlowersPartySnapshot> {
   if (input.players.length > FLOWERS_MAX_PLAYERS) {
-    throw new Error(`Flowers est limite a ${FLOWERS_MAX_PLAYERS} joueurs par partie.`);
+    throw new Error(
+      `Flowers est limite a ${FLOWERS_MAX_PLAYERS} joueurs par partie.`,
+    );
   }
 
-  const normalizedName = input.name.trim() || "Partie Flowers";
+  const data: FlowersPartyData = {
+    players: input.players.map((player, index) => ({
+      id: player.id,
+      name: player.name.trim() || `Joueur ${index + 1}`,
+    })),
+    rounds: input.rounds.map((round, index) => ({
+      id: round.id,
+      name: round.name.trim() || `Manche ${index + 1}`,
+      note: round.note?.trim() ? round.note.trim() : "",
+    })),
+    scoreSheets: {},
+  };
 
-  const party = await prisma.$transaction(async (tx: TransactionClient) => {
-    const savedParty = input.id
-      ? await tx.flowersParty.update({
-          where: { id: input.id },
-          data: { name: normalizedName },
-        })
-      : await tx.flowersParty.create({
-          data: { name: normalizedName },
-        });
+  for (const player of data.players) {
+    data.scoreSheets[player.id] = {};
 
-    await tx.flowersPartyScore.deleteMany({
-      where: { partyId: savedParty.id },
-    });
-    await tx.flowersPartyPlayer.deleteMany({
-      where: { partyId: savedParty.id },
-    });
-    await tx.flowersPartyRound.deleteMany({
-      where: { partyId: savedParty.id },
-    });
-
-    const players: PersistedPartyPlayer[] = await Promise.all(
-      input.players.map((player, index) =>
-        tx.flowersPartyPlayer.create({
-          data: {
-            partyId: savedParty.id,
-            clientId: player.id,
-            name: player.name.trim() || `Joueur ${index + 1}`,
-            position: index,
-          },
-        }),
-      ),
-    );
-
-    const rounds: PersistedPartyRound[] = await Promise.all(
-      input.rounds.map((round, index) =>
-        tx.flowersPartyRound.create({
-          data: {
-            partyId: savedParty.id,
-            clientId: round.id,
-            name: round.name.trim() || `Manche ${index + 1}`,
-            position: index,
-          },
-        }),
-      ),
-    );
-
-    const playerIdsByClientId = new Map(
-      players.map((player: PersistedPartyPlayer) => [player.clientId, player.id]),
-    );
-    const roundIdsByClientId = new Map(
-      rounds.map((round: PersistedPartyRound) => [round.clientId, round.id]),
-    );
-
-    const scores = input.players.flatMap((player) =>
-      input.rounds.map((round) => {
-        const roundScore = input.scoreSheets[player.id]?.[round.id] ?? createEmptyFlowersScoreSheet();
-
-        return {
-          partyId: savedParty.id,
-          playerId: playerIdsByClientId.get(player.id)!,
-          roundId: roundIdsByClientId.get(round.id)!,
-          blueScore: roundScore.blueScore,
-          yellowScore: roundScore.yellowScore,
-          redScore: roundScore.redScore,
-          greenScore: roundScore.greenScore,
-          butterflyScore: roundScore.butterflyScore,
-          invalidCards: roundScore.invalidCards,
-        };
-      }),
-    );
-
-    if (scores.length > 0) {
-      await tx.flowersPartyScore.createMany({
-        data: scores,
-      });
+    for (const round of data.rounds) {
+      data.scoreSheets[player.id][round.id] =
+        input.scoreSheets[player.id]?.[round.id] ?? createEmptyFlowersScoreSheet();
     }
+  }
 
-    return tx.flowersParty.findUniqueOrThrow({
-      where: { id: savedParty.id },
-      include: {
-        players: {
-          orderBy: {
-            position: "asc",
-          },
-        },
-        rounds: {
-          orderBy: {
-            position: "asc",
-          },
-        },
-        scores: true,
-      },
-    });
+  const session = await saveGameSession<FlowersPartyData>({
+    id: input.id,
+    name: input.name,
+    gameSlug: FLOWERS_GAME_SLUG,
+    isFinished: input.isFinished,
+    finishedAt: input.finishedAt,
+    data,
   });
 
-  return toPartySnapshot(party);
+  return toFlowersPartySnapshot(session);
 }

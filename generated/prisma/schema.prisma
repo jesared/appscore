@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model GameSession {
+  id         String    @id @default(cuid())
+  name       String
+  gameSlug   String
+  isActive   Boolean   @default(true)
+  isFinished Boolean   @default(false)
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  data       Json
+
+  @@index([gameSlug, updatedAt(sort: Desc)])
+  @@index([isActive, updatedAt(sort: Desc)])
+}

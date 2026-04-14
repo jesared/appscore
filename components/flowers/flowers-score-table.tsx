@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { flowersScoreFields } from "@/data/flowers-score-fields";
 import {
   calculateFlowersCumulativeTotal,
@@ -28,12 +29,15 @@ import type {
 import type { Player } from "@/types/player";
 
 type FlowersScoreTableProps = {
+  isLocked: boolean;
   players: Player[];
   rounds: FlowersRound[];
   scoreSheets: FlowersScoreSheetsByPlayer;
   rankingPlayers: FlowersRankingPlayer[];
   onAddRound: () => void;
   onChangePlayerName: (playerId: string, name: string) => void;
+  onChangeRoundName: (roundId: string, name: string) => void;
+  onChangeRoundNote: (roundId: string, note: string) => void;
   onChangeScore: (
     playerId: string,
     roundId: string,
@@ -45,6 +49,7 @@ type FlowersScoreTableProps = {
 };
 
 type RoundSectionProps = {
+  isLocked: boolean;
   players: Player[];
   round: FlowersRound;
   roundsCount: number;
@@ -57,6 +62,8 @@ type RoundSectionProps = {
     fieldId: FlowersScoreFieldId,
     value: number,
   ) => void;
+  onChangeRoundName: (roundId: string, name: string) => void;
+  onChangeRoundNote: (roundId: string, note: string) => void;
   onToggleCollapsed: (roundId: string) => void;
   onRemoveRound: (round: FlowersRound) => void;
 };
@@ -97,6 +104,50 @@ function ScoreRowLabel({ field }: { field: FlowersScoreField }) {
   );
 }
 
+function RoundMetaEditor({
+  isLocked,
+  round,
+  onChangeRoundName,
+  onChangeRoundNote,
+}: {
+  isLocked: boolean;
+  round: FlowersRound;
+  onChangeRoundName: (roundId: string, name: string) => void;
+  onChangeRoundNote: (roundId: string, note: string) => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
+      <label className="space-y-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Nom de manche
+        </span>
+        <Input
+          value={round.name}
+          onChange={(event) => onChangeRoundName(round.id, event.target.value)}
+          disabled={isLocked}
+          placeholder="Nom de la manche"
+          aria-label={`Nom de ${round.name}`}
+        />
+      </label>
+
+      <label className="space-y-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Note de manche
+        </span>
+        <Textarea
+          value={round.note ?? ""}
+          onChange={(event) => onChangeRoundNote(round.id, event.target.value)}
+          disabled={isLocked}
+          placeholder="Theme, evenement, rappel ou remarque de cette manche"
+          aria-label={`Note de ${round.name}`}
+          rows={2}
+          className="min-h-[84px] resize-none"
+        />
+      </label>
+    </div>
+  );
+}
+
 function getRoundTotal(
   scoreSheets: FlowersScoreSheetsByPlayer,
   playerId: string,
@@ -108,12 +159,15 @@ function getRoundTotal(
 }
 
 export function FlowersScoreTable({
+  isLocked,
   players,
   rounds,
   scoreSheets,
   rankingPlayers,
   onAddRound,
   onChangePlayerName,
+  onChangeRoundName,
+  onChangeRoundNote,
   onChangeScore,
   onRemovePlayer,
   onRemoveRound,
@@ -136,6 +190,10 @@ export function FlowersScoreTable({
   };
 
   const handleRemovePlayer = (player: Player) => {
+    if (isLocked) {
+      return;
+    }
+
     const playerLabel = player.name.trim() || "ce joueur";
     const shouldRemove = window.confirm(
       `Supprimer ${playerLabel} de la feuille de marque ?`,
@@ -149,6 +207,10 @@ export function FlowersScoreTable({
   };
 
   const handleRemoveRound = (round: FlowersRound) => {
+    if (isLocked) {
+      return;
+    }
+
     if (rounds.length === 1) {
       return;
     }
@@ -187,9 +249,14 @@ export function FlowersScoreTable({
               Les joueurs sont en colonnes. Chaque manche garde ses scores, son
               total et alimente le cumul final.
             </CardDescription>
+            {isLocked ? (
+              <p className="text-sm font-medium text-primary">
+                Partie terminee: la feuille est verrouillee en lecture seule.
+              </p>
+            ) : null}
           </div>
 
-          <Button className="w-full md:w-auto" onClick={onAddRound}>
+          <Button className="w-full md:w-auto" onClick={onAddRound} disabled={isLocked}>
             Ajouter une manche
           </Button>
         </div>
@@ -197,10 +264,11 @@ export function FlowersScoreTable({
 
       <CardContent className="pt-6">
         <div className="space-y-6 lg:hidden">
-          <MobilePlayersSection
-            players={players}
-            rankingByPlayerId={rankingByPlayerId}
-            leaderPlayerId={leader?.id}
+            <MobilePlayersSection
+              isLocked={isLocked}
+              players={players}
+              rankingByPlayerId={rankingByPlayerId}
+              leaderPlayerId={leader?.id}
             onChangePlayerName={onChangePlayerName}
             onRemovePlayer={handleRemovePlayer}
           />
@@ -208,6 +276,7 @@ export function FlowersScoreTable({
           {rounds.map((round) => (
             <MobileRoundSection
               key={round.id}
+              isLocked={isLocked}
               players={players}
               round={round}
               roundsCount={rounds.length}
@@ -215,6 +284,8 @@ export function FlowersScoreTable({
               leaderPlayerId={leader?.id}
               isCollapsed={isRoundCollapsed(round.id)}
               onChangeScore={onChangeScore}
+              onChangeRoundName={onChangeRoundName}
+              onChangeRoundNote={onChangeRoundNote}
               onToggleCollapsed={toggleRoundCollapsed}
               onRemoveRound={handleRemoveRound}
             />
@@ -257,6 +328,7 @@ export function FlowersScoreTable({
                             }
                             placeholder="Nom du joueur"
                             aria-label={`Nom du joueur ${player.id}`}
+                            disabled={isLocked}
                           />
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
                             <span>
@@ -273,6 +345,7 @@ export function FlowersScoreTable({
                           size="sm"
                           className="w-full"
                           onClick={() => handleRemovePlayer(player)}
+                          disabled={isLocked}
                         >
                           Supprimer
                         </Button>
@@ -287,6 +360,7 @@ export function FlowersScoreTable({
               {rounds.map((round) => (
                 <DesktopRoundSection
                   key={round.id}
+                  isLocked={isLocked}
                   players={players}
                   round={round}
                   roundsCount={rounds.length}
@@ -294,6 +368,8 @@ export function FlowersScoreTable({
                   leaderPlayerId={leader?.id}
                   isCollapsed={isRoundCollapsed(round.id)}
                   onChangeScore={onChangeScore}
+                  onChangeRoundName={onChangeRoundName}
+                  onChangeRoundNote={onChangeRoundNote}
                   onToggleCollapsed={toggleRoundCollapsed}
                   onRemoveRound={handleRemoveRound}
                 />
@@ -346,6 +422,7 @@ export function FlowersScoreTable({
 }
 
 type MobilePlayersSectionProps = {
+  isLocked: boolean;
   players: Player[];
   rankingByPlayerId: Map<string, FlowersRankingPlayer>;
   leaderPlayerId?: string;
@@ -354,6 +431,7 @@ type MobilePlayersSectionProps = {
 };
 
 function MobilePlayersSection({
+  isLocked,
   players,
   rankingByPlayerId,
   leaderPlayerId,
@@ -393,6 +471,7 @@ function MobilePlayersSection({
                       }
                       placeholder="Nom du joueur"
                       aria-label={`Nom du joueur ${player.id}`}
+                      disabled={isLocked}
                     />
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>Classement #{ranking?.rank ?? "-"}</span>
@@ -412,6 +491,7 @@ function MobilePlayersSection({
                   size="sm"
                   className="w-full"
                   onClick={() => onRemovePlayer(player)}
+                  disabled={isLocked}
                 >
                   Supprimer
                 </Button>
@@ -425,6 +505,7 @@ function MobilePlayersSection({
 }
 
 function MobileRoundSection({
+  isLocked,
   players,
   round,
   roundsCount,
@@ -432,6 +513,8 @@ function MobileRoundSection({
   leaderPlayerId,
   isCollapsed,
   onChangeScore,
+  onChangeRoundName,
+  onChangeRoundNote,
   onToggleCollapsed,
   onRemoveRound,
 }: RoundSectionProps) {
@@ -439,9 +522,12 @@ function MobileRoundSection({
     <section className="space-y-3 rounded-3xl border border-border bg-card p-4 text-card-foreground">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <p className="text-base font-semibold text-foreground">
-            {round.name}
-          </p>
+          <RoundMetaEditor
+            isLocked={isLocked}
+            round={round}
+            onChangeRoundName={onChangeRoundName}
+            onChangeRoundNote={onChangeRoundNote}
+          />
           <p className="text-xs text-muted-foreground">
             {isCollapsed
               ? "Manche repliee. Les totaux restent visibles."
@@ -464,7 +550,7 @@ function MobileRoundSection({
             size="sm"
             className="w-full sm:w-auto"
             onClick={() => onRemoveRound(round)}
-            disabled={roundsCount === 1}
+            disabled={isLocked || roundsCount === 1}
           >
             Supprimer la manche
           </Button>
@@ -558,6 +644,7 @@ function MobileRoundSection({
                         inputMode="numeric"
                         min={field.min ?? 0}
                         value={roundSheet[field.id]}
+                        disabled={isLocked}
                         onChange={(event) =>
                           onChangeScore(
                             player.id,
@@ -640,6 +727,7 @@ function MobileCumulativeSection({
 }
 
 function DesktopRoundSection({
+  isLocked,
   players,
   round,
   roundsCount,
@@ -647,6 +735,8 @@ function DesktopRoundSection({
   leaderPlayerId,
   isCollapsed,
   onChangeScore,
+  onChangeRoundName,
+  onChangeRoundNote,
   onToggleCollapsed,
   onRemoveRound,
 }: RoundSectionProps) {
@@ -656,12 +746,15 @@ function DesktopRoundSection({
         <td
           colSpan={players.length + 1}
           className="border-t border-border/60 bg-muted/35 px-4 py-4"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                {round.name}
-              </p>
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex-1 space-y-3">
+              <RoundMetaEditor
+                isLocked={isLocked}
+                round={round}
+                onChangeRoundName={onChangeRoundName}
+                onChangeRoundNote={onChangeRoundNote}
+              />
               <p className="text-xs text-muted-foreground">
                 {isCollapsed
                   ? "Manche repliee. Les totaux restent visibles."
@@ -682,7 +775,7 @@ function DesktopRoundSection({
                 variant="ghost"
                 size="sm"
                 onClick={() => onRemoveRound(round)}
-                disabled={roundsCount === 1}
+                disabled={isLocked || roundsCount === 1}
               >
                 Supprimer la manche
               </Button>
@@ -737,14 +830,15 @@ function DesktopRoundSection({
                     leaderPlayerId === player.id && "bg-primary/5",
                   )}
                 >
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min={field.min ?? 0}
-                    value={scoreSheets[player.id]?.[round.id]?.[field.id] ?? 0}
-                    onChange={(event) =>
-                      onChangeScore(
-                        player.id,
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={field.min ?? 0}
+                      value={scoreSheets[player.id]?.[round.id]?.[field.id] ?? 0}
+                      disabled={isLocked}
+                      onChange={(event) =>
+                        onChangeScore(
+                          player.id,
                         round.id,
                         field.id,
                         parseNumericValue(event.target.value, field.min ?? 0),

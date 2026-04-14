@@ -13,7 +13,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import type { FlowersPartySummary } from "@/types/flowers-party";
+
+type StoredPartySummary = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  isFinished: boolean;
+  updatedAt: string;
+  playerCount: number;
+  roundCount: number;
+};
 
 type FlowersPartyStoragePanelProps = {
   activePartyId?: string;
@@ -21,7 +30,7 @@ type FlowersPartyStoragePanelProps = {
   isSavingParty?: boolean;
   isMutatingParty?: boolean;
   partyName: string;
-  savedParties: FlowersPartySummary[];
+  savedParties: StoredPartySummary[];
   statusMessage?: string;
   onChangePartyName: (name: string) => void;
   onCreateParty: () => void;
@@ -35,7 +44,7 @@ type FlowersPartyStoragePanelProps = {
 type PartyCardProps = {
   activePartyId?: string;
   isBusy: boolean;
-  party: FlowersPartySummary;
+  party: StoredPartySummary;
   onDeleteParty: (partyId: string) => void;
   onLoadParty: (partyId: string) => void;
   onRenameParty: (partyId: string, name: string) => void;
@@ -45,11 +54,12 @@ type PartyCardProps = {
 type PartyActionsMenuProps = {
   isBusy: boolean;
   isCurrentParty: boolean;
-  party: FlowersPartySummary;
+  party: StoredPartySummary;
+  onArchive: () => void;
   onDelete: () => void;
   onLoad: () => void;
   onRename: () => void;
-  onToggleActive: () => void;
+  onRestore: () => void;
 };
 
 function formatDate(value: string) {
@@ -84,10 +94,11 @@ function PartyActionsMenu({
   isBusy,
   isCurrentParty,
   party,
+  onArchive,
   onDelete,
   onLoad,
   onRename,
-  onToggleActive,
+  onRestore,
 }: PartyActionsMenuProps) {
   return (
     <DropdownMenu>
@@ -112,13 +123,24 @@ function PartyActionsMenu({
           disabled={isBusy || isCurrentParty}
           onSelect={onLoad}
         >
-          {isCurrentParty ? "Partie ouverte" : "Charger"}
+          {isCurrentParty
+            ? "Partie ouverte"
+            : party.isActive
+              ? "Charger"
+              : "Restaurer et charger"}
         </DropdownMenuItem>
         <DropdownMenuItem disabled={isBusy} onSelect={onRename}>
           Renommer
         </DropdownMenuItem>
-        <DropdownMenuItem disabled={isBusy} onSelect={onToggleActive}>
-          {party.isActive ? "Desactiver" : "Reactiver"}
+        <DropdownMenuItem
+          disabled={isBusy}
+          onSelect={party.isActive ? onArchive : onRestore}
+        >
+          {party.isActive
+            ? isCurrentParty
+              ? "Archiver et fermer"
+              : "Archiver"
+            : "Restaurer"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -126,7 +148,7 @@ function PartyActionsMenu({
           onSelect={onDelete}
           className="text-destructive focus:bg-destructive/10 focus:text-destructive"
         >
-          Supprimer
+          Supprimer definitivement
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -149,7 +171,7 @@ function PartiesSection({
   isBusy: boolean;
   title: string;
   description: string;
-  parties: FlowersPartySummary[];
+  parties: StoredPartySummary[];
   emptyMessage: string;
   onDeleteParty: (partyId: string) => void;
   onLoadParty: (partyId: string) => void;
@@ -272,7 +294,8 @@ function PartyCard({
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   {isCurrentParty ? <PartyBadge tone="primary">Ouverte</PartyBadge> : null}
-                  {!party.isActive ? <PartyBadge>Desactivee</PartyBadge> : null}
+                  {party.isFinished ? <PartyBadge>Terminee</PartyBadge> : null}
+                  {!party.isActive ? <PartyBadge>Archivee</PartyBadge> : null}
                 </div>
               </>
             )}
@@ -291,7 +314,8 @@ function PartyCard({
               setIsConfirmingDelete(false);
               setIsEditingName(true);
             }}
-            onToggleActive={() => onTogglePartyActive(party.id, !party.isActive)}
+            onArchive={() => onTogglePartyActive(party.id, false)}
+            onRestore={() => onTogglePartyActive(party.id, true)}
           />
         </div>
 
@@ -339,7 +363,7 @@ function PartyCard({
                 disabled={isBusy}
                 onClick={() => onDeleteParty(party.id)}
               >
-                Confirmer la suppression
+                Supprimer definitivement
               </Button>
               <Button
                 type="button"
@@ -422,7 +446,8 @@ export function FlowersPartyStoragePanel({
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   {currentParty ? <PartyBadge tone="primary">Partie ouverte</PartyBadge> : null}
-                  {currentParty && !currentParty.isActive ? <PartyBadge>Desactivee</PartyBadge> : null}
+                  {currentParty?.isFinished ? <PartyBadge>Terminee</PartyBadge> : null}
+                  {currentParty && !currentParty.isActive ? <PartyBadge>Archivee</PartyBadge> : null}
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">Partie en cours</p>

@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -8,61 +9,17 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model FlowersParty {
-  id        String              @id @default(cuid())
-  name      String
-  gameSlug  String              @default("flowers")
-  isActive  Boolean             @default(true)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
-  players   FlowersPartyPlayer[]
-  rounds    FlowersPartyRound[]
-  scores    FlowersPartyScore[]
+model GameSession {
+  id         String   @id @default(cuid())
+  name       String
+  gameSlug   String
+  isActive   Boolean  @default(true)
+  isFinished Boolean  @default(false)
+  finishedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  data       Json
 
-  @@index([updatedAt(sort: Desc)])
-}
-
-model FlowersPartyPlayer {
-  id       String             @id @default(cuid())
-  partyId  String
-  clientId String
-  name     String
-  position Int
-  party    FlowersParty       @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  scores   FlowersPartyScore[]
-
-  @@unique([partyId, clientId])
-  @@index([partyId, position])
-}
-
-model FlowersPartyRound {
-  id       String             @id @default(cuid())
-  partyId  String
-  clientId String
-  name     String
-  position Int
-  party    FlowersParty       @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  scores   FlowersPartyScore[]
-
-  @@unique([partyId, clientId])
-  @@index([partyId, position])
-}
-
-model FlowersPartyScore {
-  id             String            @id @default(cuid())
-  partyId        String
-  playerId       String
-  roundId        String
-  blueScore      Int               @default(0)
-  yellowScore    Int               @default(0)
-  redScore       Int               @default(0)
-  greenScore     Int               @default(0)
-  butterflyScore Int               @default(0)
-  invalidCards   Int               @default(0)
-  party          FlowersParty      @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  player         FlowersPartyPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  round          FlowersPartyRound  @relation(fields: [roundId], references: [id], onDelete: Cascade)
-
-  @@unique([playerId, roundId])
-  @@index([partyId])
+  @@index([gameSlug, updatedAt(sort: Desc)])
+  @@index([isActive, updatedAt(sort: Desc)])
 }

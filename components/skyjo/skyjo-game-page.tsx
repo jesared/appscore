@@ -762,7 +762,7 @@ export function SkyjoGamePage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="grid gap-2 border-t border-border/70 pt-4 sm:grid-cols-3">
+          <CardContent className="grid grid-cols-3 gap-2 border-t border-border/70 pt-4">
             <div>
               <p className="text-xs uppercase text-muted-foreground">Joueurs</p>
               <p className="text-lg font-semibold">{players.length}</p>

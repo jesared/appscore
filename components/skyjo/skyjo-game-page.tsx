@@ -699,23 +699,6 @@ export function SkyjoGamePage() {
     );
   }
 
-  function handleChangeRoundNote(roundId: string, note: string) {
-    if (isPartyFinished) {
-      return;
-    }
-
-    setRounds((currentRounds) =>
-      currentRounds.map((round) =>
-        round.id === roundId
-          ? {
-              ...round,
-              note,
-            }
-          : round,
-      ),
-    );
-  }
-
   function handleFinishParty() {
     if (players.length === 0) {
       pushToast("Ajoute au moins un joueur avant de terminer la partie.", "error");
@@ -806,7 +789,7 @@ export function SkyjoGamePage() {
             rounds={rounds}
             onReopenParty={handleReopenParty}
           />
-        ) : (
+        ) : players.length === 0 ? (
           <AddPlayerForm
             description={
               isPlayerLimitReached
@@ -817,7 +800,7 @@ export function SkyjoGamePage() {
             onAddPlayer={handleAddPlayer}
             placeholder="Nom du joueur"
           />
-        )}
+        ) : null}
 
         <SkyjoScoreTable
           isLocked={isPartyFinished}
@@ -828,11 +811,19 @@ export function SkyjoGamePage() {
           onAddRound={handleAddRound}
           onChangePlayerName={handleChangePlayerName}
           onChangeRoundName={handleChangeRoundName}
-          onChangeRoundNote={handleChangeRoundNote}
           onChangeScore={handleChangeScore}
           onRemovePlayer={handleRemovePlayer}
           onRemoveRound={handleRemoveRound}
         />
+
+        {!isPartyFinished && players.length > 0 && !isPlayerLimitReached ? (
+          <AddPlayerForm
+            description={`Ajoute un autre joueur pour cette ${skyjoGame.sessionLabel} ${skyjoGame.name}.`}
+            isDisabled={isPartyFinished}
+            onAddPlayer={handleAddPlayer}
+            placeholder="Autre joueur"
+          />
+        ) : null}
 
         {!isPartyFinished && players.length > 0 ? (
           <Card>

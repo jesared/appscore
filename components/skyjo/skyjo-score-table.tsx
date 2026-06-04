@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   calculateSkyjoCumulativeTotal,
   calculateSkyjoRoundTotal,
@@ -34,23 +31,20 @@ type SkyjoScoreTableProps = {
   onAddRound: () => void;
   onChangePlayerName: (playerId: string, name: string) => void;
   onChangeRoundName: (roundId: string, name: string) => void;
-  onChangeRoundNote: (roundId: string, note: string) => void;
   onChangeScore: (playerId: string, roundId: string, value: number) => void;
   onRemovePlayer: (playerId: string) => void;
   onRemoveRound: (roundId: string) => void;
 };
 
 type SkyjoRoundSectionProps = {
-  isCollapsed: boolean;
   isLocked: boolean;
   leaderPlayerId?: string;
   onChangeRoundName: (roundId: string, name: string) => void;
-  onChangeRoundNote: (roundId: string, note: string) => void;
   onChangeScore: (playerId: string, roundId: string, value: number) => void;
   onRemoveRound: (round: SkyjoRound) => void;
-  onToggleCollapsed: (roundId: string) => void;
   players: Player[];
   round: SkyjoRound;
+  rounds: SkyjoRound[];
   roundsCount: number;
   scoreSheets: SkyjoScoreSheetsByPlayer;
 };
@@ -79,61 +73,15 @@ function getRoundPoints(
   );
 }
 
-function RoundMetaEditor({
-  isLocked,
-  round,
-  onChangeRoundName,
-  onChangeRoundNote,
-}: {
-  isLocked: boolean;
-  round: SkyjoRound;
-  onChangeRoundName: (roundId: string, name: string) => void;
-  onChangeRoundNote: (roundId: string, note: string) => void;
-}) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
-      <label className="hidden space-y-2 sm:block">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Nom de manche
-        </span>
-        <Input
-          value={round.name}
-          onChange={(event) => onChangeRoundName(round.id, event.target.value)}
-          disabled={isLocked}
-          placeholder="Nom de la manche"
-          aria-label={`Nom de ${round.name}`}
-        />
-      </label>
-
-      <label className="space-y-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Note de manche
-        </span>
-        <Textarea
-          value={round.note ?? ""}
-          onChange={(event) => onChangeRoundNote(round.id, event.target.value)}
-          disabled={isLocked}
-          placeholder="Remarque, evenement ou rappel pour cette manche"
-          aria-label={`Note de ${round.name}`}
-          rows={2}
-          className="min-h-20 resize-none"
-        />
-      </label>
-    </div>
-  );
-}
-
 function SkyjoRoundSection({
-  isCollapsed,
   isLocked,
   leaderPlayerId,
   onChangeRoundName,
-  onChangeRoundNote,
   onChangeScore,
   onRemoveRound,
-  onToggleCollapsed,
   players,
   round,
+  rounds,
   roundsCount,
   scoreSheets,
 }: SkyjoRoundSectionProps) {
@@ -147,225 +95,72 @@ function SkyjoRoundSection({
 
   return (
     <section className="space-y-3 rounded-xl border border-border bg-background p-3">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-xl bg-secondary px-2.5 py-1 text-[11px] font-semibold uppercase text-secondary-foreground">
-              {round.name}
-            </span>
-            <span className="rounded-xl bg-accent px-2.5 py-1 text-[11px] font-semibold uppercase text-accent-foreground">
-              {players.length} joueur{players.length > 1 ? "s" : ""}
-            </span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Une seule saisie par joueur: moins le total est eleve, mieux c&apos;est.
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <Input
+          value={round.name}
+          onChange={(event) => onChangeRoundName(round.id, event.target.value)}
+          disabled={isLocked}
+          placeholder="Nom de la manche"
+          aria-label={`Nom de ${round.name}`}
+          className="max-w-48 border-transparent bg-transparent px-0 text-base font-semibold shadow-none focus-visible:ring-0"
+        />
 
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onToggleCollapsed(round.id)}
-          >
-            {isCollapsed ? "Deplier" : "Replier"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isLocked || roundsCount === 1}
-            onClick={() => onRemoveRound(round)}
-          >
-            Supprimer
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={isLocked || roundsCount === 1}
+          onClick={() => onRemoveRound(round)}
+        >
+          Supprimer
+        </Button>
       </div>
 
-      <RoundMetaEditor
-        isLocked={isLocked}
-        round={round}
-        onChangeRoundName={onChangeRoundName}
-        onChangeRoundNote={onChangeRoundNote}
-      />
+      <div className="divide-y divide-border rounded-xl border border-border bg-card">
+        {players.map((player) => {
+          const roundPoints = getRoundPoints(scoreSheets, player.id, round.id);
+          const isBest =
+            bestRoundTotal !== undefined && roundPoints === bestRoundTotal;
 
-      {isCollapsed ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {players.map((player) => {
-            const roundPoints = getRoundPoints(scoreSheets, player.id, round.id);
-            const isBest =
-              bestRoundTotal !== undefined && roundPoints === bestRoundTotal;
-
-            return (
-              <div
-                key={player.id}
-                className={cn(
-                  "rounded-xl border border-border bg-card px-3 py-2.5",
-                  isBest && "border-primary bg-primary/10",
-                )}
-              >
-                <p className="font-medium text-foreground">
+          return (
+            <div
+              key={player.id}
+              className={cn(
+                "grid grid-cols-[minmax(0,1fr)_8.25rem] items-center gap-3 p-3",
+                isBest && "bg-primary/5",
+              )}
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium text-foreground">
                   {player.name || "Sans nom"}
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Manche: {roundPoints} point{roundPoints > 1 ? "s" : ""}
+                <p className="text-xs text-muted-foreground">
+                  Total partie {calculateSkyjoCumulativeTotal(rounds, scoreSheets[player.id])}
+                  {leaderPlayerId === player.id ? " - en tete" : ""}
                 </p>
-                {leaderPlayerId === player.id ? (
-                  <p className="mt-2 text-xs font-medium uppercase tracking-wide text-primary">
-                    Meilleur cumul actuel
-                  </p>
-                ) : null}
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          <div className="hidden overflow-x-auto lg:block">
-            <table className="min-w-full border-separate border-spacing-0">
-              <thead>
-                <tr>
-                  <th className="sticky left-0 z-10 rounded-l-xl border border-border bg-card px-4 py-3 text-left text-sm font-semibold text-foreground">
-                    Ligne
-                  </th>
-                  {players.map((player) => (
-                    <th
-                      key={player.id}
-                      className="min-w-[180px] border-y border-r border-border bg-card px-4 py-3 text-left align-top"
-                    >
-                      <div className="space-y-2">
-                        <p className="font-medium text-foreground">
-                          {player.name || "Sans nom"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {leaderPlayerId === player.id
-                            ? "Meilleur cumul actuel"
-                            : "Score de manche"}
-                        </p>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="sticky left-0 z-10 border-x border-b border-border bg-background px-4 py-3 text-sm font-medium text-foreground">
-                    Points
-                  </td>
-                  {players.map((player) => {
-                    const roundPoints = getRoundPoints(scoreSheets, player.id, round.id);
 
-                    return (
-                      <td
-                        key={player.id}
-                        className={cn(
-                          "border-r border-b border-border bg-background px-4 py-3",
-                          bestRoundTotal !== undefined &&
-                            roundPoints === bestRoundTotal &&
-                            "bg-primary/5",
-                        )}
-                      >
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          value={String(roundPoints)}
-                          disabled={isLocked}
-                          onChange={(event) =>
-                            onChangeScore(
-                              player.id,
-                              round.id,
-                              parseNumericValue(event.target.value),
-                            )
-                          }
-                        />
-                      </td>
-                    );
-                  })}
-                </tr>
-                <tr>
-                  <td className="sticky left-0 z-10 rounded-bl-xl border-x border-b border-border bg-card px-4 py-3 text-sm font-semibold text-foreground">
-                    Total manche
-                  </td>
-                  {players.map((player, index) => {
-                    const roundPoints = getRoundPoints(scoreSheets, player.id, round.id);
-
-                    return (
-                      <td
-                        key={player.id}
-                        className={cn(
-                          "border-r border-b border-border bg-card px-4 py-3 text-right text-sm font-semibold text-foreground",
-                          index === players.length - 1 && "rounded-br-xl",
-                          bestRoundTotal !== undefined &&
-                            roundPoints === bestRoundTotal &&
-                            "bg-primary/10",
-                        )}
-                      >
-                        {roundPoints}
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div className="grid gap-3 lg:hidden">
-            {players.map((player) => {
-              const roundPoints = getRoundPoints(scoreSheets, player.id, round.id);
-              const isBest =
-                bestRoundTotal !== undefined && roundPoints === bestRoundTotal;
-
-              return (
-                <div
-                  key={player.id}
-                  className={cn(
-                    "rounded-xl border border-border bg-card p-3",
-                    isBest && "border-primary bg-primary/5",
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="font-medium text-foreground">
-                        {player.name || "Sans nom"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {leaderPlayerId === player.id
-                          ? "Meilleur cumul actuel"
-                          : "Saisie de la manche"}
-                      </p>
-                    </div>
-                    {isBest ? (
-                      <span className="rounded-xl bg-primary px-2.5 py-1 text-[11px] font-semibold uppercase text-primary-foreground">
-                        Meilleur score
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-4 space-y-2">
-                    <label className="space-y-2">
-                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Points
-                      </span>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        value={String(roundPoints)}
-                        disabled={isLocked}
-                        onChange={(event) =>
-                          onChangeScore(
-                            player.id,
-                            round.id,
-                            parseNumericValue(event.target.value),
-                          )
-                        }
-                      />
-                    </label>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+              <label className="space-y-1">
+                <span className="sr-only">Points de {player.name || "Sans nom"}</span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={String(roundPoints)}
+                  disabled={isLocked}
+                  aria-label={`Points de ${player.name || "Sans nom"} pour ${round.name}`}
+                  className="h-12 text-right text-lg font-semibold"
+                  onChange={(event) =>
+                    onChangeScore(
+                      player.id,
+                      round.id,
+                      parseNumericValue(event.target.value),
+                    )
+                  }
+                />
+              </label>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -379,27 +174,14 @@ export function SkyjoScoreTable({
   onAddRound,
   onChangePlayerName,
   onChangeRoundName,
-  onChangeRoundNote,
   onChangeScore,
   onRemovePlayer,
   onRemoveRound,
 }: SkyjoScoreTableProps) {
-  const [collapsedRoundIds, setCollapsedRoundIds] = useState<string[]>([]);
   const rankingByPlayerId = new Map(
     rankingPlayers.map((player) => [player.id, player]),
   );
   const leader = rankingPlayers[0];
-
-  const isRoundCollapsed = (roundId: string) =>
-    collapsedRoundIds.includes(roundId);
-
-  const toggleRoundCollapsed = (roundId: string) => {
-    setCollapsedRoundIds((currentIds) =>
-      currentIds.includes(roundId)
-        ? currentIds.filter((currentId) => currentId !== roundId)
-        : [...currentIds, roundId],
-    );
-  };
 
   const handleRemovePlayer = (player: Player) => {
     if (isLocked) {
@@ -448,14 +230,13 @@ export function SkyjoScoreTable({
   return (
     <Card className="overflow-hidden">
       <CardHeader className="gap-3 border-b border-border/70 bg-background/80">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <CardTitle className="font-display text-xl sm:text-2xl">
-              Feuille de score Skyjo
+              Scores
             </CardTitle>
-            <CardDescription className="hidden sm:block">
-              Une saisie simple par manche: chaque joueur note ses points, et
-              le classement garde le plus petit total en tete.
+            <CardDescription>
+              Saisis les points. Le plus petit total gagne.
             </CardDescription>
             {isLocked ? (
               <p className="text-sm font-medium text-primary">
@@ -464,12 +245,12 @@ export function SkyjoScoreTable({
             ) : null}
           </div>
 
-          <Button className="w-full md:w-auto" onClick={onAddRound} disabled={isLocked}>
-            Ajouter une manche
+          <Button className="w-full sm:w-auto" onClick={onAddRound} disabled={isLocked}>
+            + Manche
           </Button>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-4">
           {players.map((player) => {
             const rankingPlayer = rankingByPlayerId.get(player.id);
             const isLeader = leader?.id === player.id;
@@ -530,16 +311,14 @@ export function SkyjoScoreTable({
         {rounds.map((round) => (
           <SkyjoRoundSection
             key={round.id}
-            isCollapsed={isRoundCollapsed(round.id)}
             isLocked={isLocked}
             leaderPlayerId={leader?.id}
             onChangeRoundName={onChangeRoundName}
-            onChangeRoundNote={onChangeRoundNote}
             onChangeScore={onChangeScore}
             onRemoveRound={handleRemoveRound}
-            onToggleCollapsed={toggleRoundCollapsed}
             players={players}
             round={round}
+            rounds={rounds}
             roundsCount={rounds.length}
             scoreSheets={scoreSheets}
           />

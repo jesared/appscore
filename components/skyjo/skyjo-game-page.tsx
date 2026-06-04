@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
@@ -750,71 +751,53 @@ export function SkyjoGamePage() {
             : undefined;
 
   return (
-    <main className="container py-8 md:py-12">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <section className="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
-          <Card className="overflow-hidden">
-            <CardHeader className="space-y-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium uppercase tracking-[0.24em] text-primary">
-                    Feuille de marque numerique
-                  </p>
-                  <CardTitle className="font-display text-4xl md:text-5xl">
-                    {skyjoGame.name}
-                  </CardTitle>
-                  <CardDescription className="max-w-2xl text-base">
-                    Une feuille de score multi-manches simple, avec total
-                    cumule, classement ascendant et sauvegarde en base.
-                  </CardDescription>
-                </div>
+    <main className="container py-3 sm:py-5 md:py-8">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4">
+        <Card>
+          <CardHeader className="gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase text-primary">
+                  Feuille numerique
+                </p>
+                <CardTitle className="font-display text-2xl sm:text-3xl">
+                  {skyjoGame.name}
+                </CardTitle>
+                <CardDescription className="max-w-2xl">
+                  Points par manche, sauvegarde et classement du plus petit
+                  total.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <Link
+                  href="/"
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-background px-3.5 py-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  Jeux
+                </Link>
                 <ThemeToggle />
               </div>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Vue d&apos;ensemble</CardTitle>
-              <CardDescription>
-                Chaque manche ajoute des points. A Skyjo, le meilleur score est
-                le plus faible total final.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-foreground">
-              <p>Score de manche = points saisis pour le joueur</p>
-              <p>Total cumule = somme de toutes les manches</p>
-              <p>Classement final = plus petit total en tete</p>
-              <div className="rounded-2xl bg-accent p-4">
-                <p className="text-xs uppercase tracking-wide text-accent-foreground">
-                  Leader actuel
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-accent-foreground">
-                  {leader
-                    ? `${leader.name || "Sans nom"} (${leader.cumulativeTotal})`
-                    : "Aucun"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <FlowersPartyStoragePanel
-          activePartyId={partyId}
-          isLoadingParty={isLoadingParty}
-          isSavingParty={isSavingParty}
-          isMutatingParty={isMutatingParty}
-          partyName={partyName}
-          savedParties={savedParties}
-          statusMessage={statusMessage}
-          onChangePartyName={setPartyName}
-          onCreateParty={resetParty}
-          onDeleteParty={handleDeleteParty}
-          onLoadParty={handleLoadParty}
-          onRenameParty={handleRenameParty}
-          onSaveParty={handleSaveParty}
-          onTogglePartyActive={handleTogglePartyActive}
-        />
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-2 border-t border-border/70 pt-4 sm:grid-cols-3">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Joueurs</p>
+              <p className="text-lg font-semibold">{players.length}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Manches</p>
+              <p className="text-lg font-semibold">{rounds.length}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Leader</p>
+              <p className="truncate text-lg font-semibold">
+                {leader
+                  ? `${leader.name || "Sans nom"} (${leader.cumulativeTotal})`
+                  : "Aucun"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {isPartyFinished ? (
           <SkyjoFinishedSummary
@@ -824,36 +807,16 @@ export function SkyjoGamePage() {
             onReopenParty={handleReopenParty}
           />
         ) : (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Cloturer la partie</CardTitle>
-                <CardDescription>
-                  Quand tous les points sont saisis, termine la partie pour
-                  figer la feuille et afficher un resume final propre.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">
-                  La cloture verrouille les joueurs, les manches et les scores.
-                </p>
-                <Button onClick={handleFinishParty} disabled={!canFinishParty}>
-                  Terminer la partie
-                </Button>
-              </CardContent>
-            </Card>
-
-            <AddPlayerForm
-              description={
-                isPlayerLimitReached
-                  ? `Limite atteinte: ${skyjoGame.name} se joue jusqu'a ${skyjoMaxPlayers} joueurs.`
-                  : `Ajoute jusqu'a ${skyjoMaxPlayers} joueurs pour cette ${skyjoGame.sessionLabel} ${skyjoGame.name}.`
-              }
-              isDisabled={isPlayerLimitReached || isPartyFinished}
-              onAddPlayer={handleAddPlayer}
-              placeholder="Nom du joueur"
-            />
-          </>
+          <AddPlayerForm
+            description={
+              isPlayerLimitReached
+                ? `Limite atteinte: ${skyjoGame.name} se joue jusqu'a ${skyjoMaxPlayers} joueurs.`
+                : `Ajoute jusqu'a ${skyjoMaxPlayers} joueurs pour cette ${skyjoGame.sessionLabel} ${skyjoGame.name}.`
+            }
+            isDisabled={isPlayerLimitReached || isPartyFinished}
+            onAddPlayer={handleAddPlayer}
+            placeholder="Nom du joueur"
+          />
         )}
 
         <SkyjoScoreTable
@@ -871,7 +834,38 @@ export function SkyjoGamePage() {
           onRemoveRound={handleRemoveRound}
         />
 
+        {!isPartyFinished && players.length > 0 ? (
+          <Card>
+            <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between sm:pt-5">
+              <p className="text-sm text-muted-foreground">
+                Termine la partie pour verrouiller la feuille et afficher le
+                resume.
+              </p>
+              <Button onClick={handleFinishParty} disabled={!canFinishParty}>
+                Terminer la partie
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
         <SkyjoRankingList rankingPlayers={rankingPlayers} />
+
+        <FlowersPartyStoragePanel
+          activePartyId={partyId}
+          isLoadingParty={isLoadingParty}
+          isSavingParty={isSavingParty}
+          isMutatingParty={isMutatingParty}
+          partyName={partyName}
+          savedParties={savedParties}
+          statusMessage={statusMessage}
+          onChangePartyName={setPartyName}
+          onCreateParty={resetParty}
+          onDeleteParty={handleDeleteParty}
+          onLoadParty={handleLoadParty}
+          onRenameParty={handleRenameParty}
+          onSaveParty={handleSaveParty}
+          onTogglePartyActive={handleTogglePartyActive}
+        />
       </div>
       <ToastStack onDismiss={dismissToast} toasts={toasts} />
     </main>

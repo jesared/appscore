@@ -79,7 +79,7 @@ function PartyBadge({
   return (
     <span
       className={cn(
-        "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
+        "rounded-xl px-2.5 py-1 text-[11px] font-semibold uppercase",
         tone === "primary"
           ? "bg-primary text-primary-foreground"
           : "bg-secondary text-secondary-foreground",
@@ -189,7 +189,7 @@ function PartiesSection({
       </div>
 
       {parties.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-background px-4 py-5 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-dashed border-border bg-background px-3 py-4 text-sm text-muted-foreground">
           {emptyMessage}
         </div>
       ) : (
@@ -235,7 +235,7 @@ function PartyCard({
   return (
     <div
       className={cn(
-        "rounded-3xl border border-border bg-card p-4 text-card-foreground",
+        "rounded-xl border border-border bg-card p-3 text-card-foreground",
         isCurrentParty && "border-primary/40 bg-primary/5",
         !party.isActive && "bg-muted/30",
       )}
@@ -319,7 +319,7 @@ function PartyCard({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 rounded-2xl bg-background p-3">
+        <div className="grid grid-cols-2 gap-3 rounded-xl bg-background p-3">
           <div>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
               Joueurs
@@ -347,7 +347,7 @@ function PartyCard({
         </div>
 
         {isConfirmingDelete ? (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
             <p className="text-sm font-medium text-foreground">
               Supprimer definitivement cette partie ?
             </p>
@@ -407,19 +407,18 @@ export function FlowersPartyStoragePanel({
   const hasCurrentParty = currentParty !== undefined;
 
   useEffect(() => {
-    setIsLibraryOpen(!hasCurrentParty);
+    if (hasCurrentParty) {
+      setIsLibraryOpen(false);
+    }
   }, [hasCurrentParty]);
 
   return (
     <Card>
-      <CardHeader className="space-y-4 border-b border-border/70">
+      <CardHeader className="border-b border-border/70">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <CardTitle>Gestion des parties</CardTitle>
-            <CardDescription>
-              Nomme la partie en cours, sauvegarde-la, puis retrouve facilement
-              les parties actives et archivees.
-            </CardDescription>
+            <CardTitle>Partie</CardTitle>
+            <CardDescription>Nomme, sauvegarde ou retrouve une partie.</CardDescription>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -439,8 +438,8 @@ export function FlowersPartyStoragePanel({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6 pt-6">
-        <section className="space-y-4 rounded-3xl border border-border bg-background p-4">
+      <CardContent className="space-y-4 pt-4 sm:pt-5">
+        <section className="space-y-4">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0 flex-1 space-y-4">
               <div className="space-y-2">
@@ -453,13 +452,13 @@ export function FlowersPartyStoragePanel({
                   <p className="text-sm font-semibold text-foreground">Partie en cours</p>
                   <p className="text-xs leading-5 text-muted-foreground">
                     {currentParty
-                      ? "La partie est ouverte. Tu peux sauvegarder vite et n'ouvrir la bibliotheque qu'au besoin."
-                      : "Donne un nom a la partie puis enregistre-la pour la retrouver plus tard."}
+                      ? "Sauvegarde rapide. Les anciennes parties restent masquees."
+                      : "Donne un nom puis sauvegarde pour la retrouver plus tard."}
                   </p>
                 </div>
               </div>
 
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
+              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <Input
                   value={partyName}
                   onChange={(event) => onChangePartyName(event.target.value)}
@@ -474,12 +473,12 @@ export function FlowersPartyStoragePanel({
                   onClick={() => setIsLibraryOpen((current) => !current)}
                   disabled={isBusy}
                 >
-                  {isLibraryOpen ? "Masquer la bibliotheque" : "Afficher la bibliotheque"}
+                  {isLibraryOpen ? "Masquer" : "Parties sauvegardees"}
                 </Button>
               </div>
 
               {currentParty ? (
-                <div className="grid gap-3 rounded-2xl bg-card p-4 sm:grid-cols-3">
+                <div className="grid gap-3 rounded-xl bg-background p-3 sm:grid-cols-3">
                   <div>
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                       Partie
@@ -506,7 +505,7 @@ export function FlowersPartyStoragePanel({
               ) : null}
 
               {statusMessage ? (
-                <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground">
+                <div className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground">
                   {statusMessage}
                 </div>
               ) : null}

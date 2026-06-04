@@ -59,6 +59,12 @@ const config: Config = {
         "3xl": "var(--radius)",
       },
       boxShadow: {
+        sm: "var(--shadow-sm)",
+        DEFAULT: "var(--shadow)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+        xl: "var(--shadow-xl)",
+        "2xl": "var(--shadow-2xl)",
         soft: "var(--shadow-lg)",
         floating: "var(--shadow-xl)",
       },

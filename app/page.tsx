@@ -19,22 +19,20 @@ export default function HomePage() {
   const games = getRegisteredGames();
 
   return (
-    <main className="container py-8 md:py-12">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <Card className="overflow-hidden">
-          <CardHeader className="space-y-4">
+    <main className="container py-3 sm:py-5 md:py-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4">
+        <Card>
+          <CardHeader className="gap-3">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="space-y-2">
-                <p className="text-sm font-medium uppercase tracking-[0.24em] text-primary">
-                  Board Score Studio
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase text-primary">
+                  AppScore
                 </p>
-                <CardTitle className="font-display text-4xl md:text-5xl">
+                <CardTitle className="font-display text-2xl sm:text-3xl">
                   Choisir un jeu
                 </CardTitle>
-                <CardDescription className="max-w-2xl text-base">
-                  Selectionne une feuille de score selon le jeu. L&apos;architecture
-                  est maintenant prete pour faire cohabiter plusieurs fiches sans
-                  casser l&apos;existant.
+                <CardDescription className="max-w-2xl">
+                  Ouvre une feuille, ajoute les joueurs et saisis les scores.
                 </CardDescription>
               </div>
               <ThemeToggle />
@@ -49,25 +47,21 @@ export default function HomePage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <CardTitle>{game.name}</CardTitle>
-                    <CardDescription>{game.description}</CardDescription>
+                    <CardDescription className="line-clamp-2">
+                      {game.description}
+                    </CardDescription>
                   </div>
-                  <span className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
+                  <span className="shrink-0 rounded-xl bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
                     {gameStatusLabels[game.slug] ?? "Disponible"}
                   </span>
                 </div>
               </CardHeader>
-              <CardContent className="mt-auto flex flex-col gap-4">
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>Slug : `{game.slug}`</p>
-                  <p>
-                    Route : <span className="font-mono">{`/games/${game.slug}`}</span>
-                  </p>
-                </div>
+              <CardContent className="mt-auto">
                 <Link
                   href={`/games/${game.slug}`}
-                  className="inline-flex h-10 items-center justify-center rounded-2xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-primary bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  Ouvrir la feuille
+                  Jouer
                 </Link>
               </CardContent>
             </Card>

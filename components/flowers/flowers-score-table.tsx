@@ -116,8 +116,8 @@ function RoundMetaEditor({
   onChangeRoundNote: (roundId: string, note: string) => void;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
-      <label className="space-y-2">
+    <div className="grid gap-3 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
+      <label className="hidden space-y-2 sm:block">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Nom de manche
         </span>
@@ -141,7 +141,7 @@ function RoundMetaEditor({
           placeholder="Theme, evenement, rappel ou remarque de cette manche"
           aria-label={`Note de ${round.name}`}
           rows={2}
-          className="min-h-[84px] resize-none"
+          className="min-h-20 resize-none"
         />
       </label>
     </div>
@@ -239,13 +239,13 @@ export function FlowersScoreTable({
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="gap-4 border-b border-border/70 bg-background/80">
+      <CardHeader className="gap-3 border-b border-border/70 bg-background/80">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-1">
-            <CardTitle className="font-display text-3xl md:text-4xl">
+            <CardTitle className="font-display text-xl sm:text-2xl">
               Feuille de marque Flowers
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="hidden sm:block">
               Les joueurs sont en colonnes. Chaque manche garde ses scores, son
               total et alimente le cumul final.
             </CardDescription>
@@ -262,8 +262,8 @@ export function FlowersScoreTable({
         </div>
       </CardHeader>
 
-      <CardContent className="pt-6">
-        <div className="space-y-6 lg:hidden">
+      <CardContent className="pt-4 sm:pt-5">
+        <div className="space-y-4 lg:hidden">
             <MobilePlayersSection
               isLocked={isLocked}
               players={players}
@@ -303,7 +303,7 @@ export function FlowersScoreTable({
           <table className="min-w-[860px] w-full border-separate border-spacing-0">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 min-w-56 rounded-l-2xl bg-muted/80 px-4 py-4 text-left text-sm font-semibold text-foreground backdrop-blur">
+                <th className="sticky left-0 z-10 min-w-56 rounded-l-xl bg-muted/80 px-4 py-4 text-left text-sm font-semibold text-foreground backdrop-blur">
                   Categories
                 </th>
                 {players.map((player, index) => {
@@ -316,7 +316,7 @@ export function FlowersScoreTable({
                       className={cn(
                         "min-w-52 border-l border-border/60 bg-muted/50 px-4 py-4 align-top",
                         isLeader && "bg-primary/10",
-                        index === players.length - 1 && "rounded-r-2xl",
+                        index === players.length - 1 && "rounded-r-xl",
                       )}
                     >
                       <div className="space-y-3">
@@ -376,7 +376,7 @@ export function FlowersScoreTable({
               ))}
 
               <tr>
-                <td className="sticky left-0 z-10 rounded-bl-2xl border-t border-border/60 bg-primary px-4 py-5 text-primary-foreground">
+                <td className="sticky left-0 z-10 rounded-bl-xl border-t border-border/60 bg-primary px-4 py-5 text-primary-foreground">
                   <div>
                     <p className="font-semibold">Total cumule</p>
                     <p className="text-xs text-primary-foreground/80">
@@ -398,7 +398,7 @@ export function FlowersScoreTable({
                       className={cn(
                         "border-l border-t border-primary/20 bg-primary px-4 py-5 text-center text-primary-foreground",
                         isLeader && "bg-primary",
-                        index === players.length - 1 && "rounded-br-2xl",
+                        index === players.length - 1 && "rounded-br-xl",
                       )}
                     >
                       <div className="space-y-1">
@@ -442,7 +442,7 @@ function MobilePlayersSection({
     <section className="space-y-3">
       <div className="space-y-1">
         <p className="text-sm font-semibold text-foreground">Joueurs</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="hidden text-xs text-muted-foreground sm:block">
           Renomme les joueurs et retrouve leur cumul sans scroller
           horizontalement.
         </p>
@@ -457,7 +457,7 @@ function MobilePlayersSection({
             <div
               key={player.id}
               className={cn(
-                "rounded-2xl border border-border bg-card p-4 text-card-foreground",
+                "rounded-xl border border-border bg-card p-3 text-card-foreground",
                 isLeader && "border-primary bg-primary/10",
               )}
             >
@@ -519,7 +519,7 @@ function MobileRoundSection({
   onRemoveRound,
 }: RoundSectionProps) {
   return (
-    <section className="space-y-3 rounded-3xl border border-border bg-card p-4 text-card-foreground">
+    <section className="space-y-3 rounded-xl border border-border bg-card p-3 text-card-foreground">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <RoundMetaEditor
@@ -542,7 +542,7 @@ function MobileRoundSection({
             className="w-full sm:w-auto"
             onClick={() => onToggleCollapsed(round.id)}
           >
-            {isCollapsed ? "Deplier la manche" : "Replier la manche"}
+            {isCollapsed ? "Deplier" : "Replier"}
           </Button>
 
           <Button
@@ -552,7 +552,7 @@ function MobileRoundSection({
             onClick={() => onRemoveRound(round)}
             disabled={isLocked || roundsCount === 1}
           >
-            Supprimer la manche
+            Supprimer
           </Button>
         </div>
       </div>
@@ -567,7 +567,7 @@ function MobileRoundSection({
               <div
                 key={`${round.id}-${player.id}-summary`}
                 className={cn(
-                  "flex items-center justify-between rounded-2xl border border-border bg-background px-4 py-3",
+                  "flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2.5",
                   isLeader && "border-primary bg-primary/5",
                 )}
               >
@@ -594,7 +594,7 @@ function MobileRoundSection({
               <div
                 key={`${round.id}-${player.id}`}
                 className={cn(
-                  "rounded-2xl border border-border bg-background p-4",
+                  "rounded-xl border border-border bg-background p-3",
                   isLeader && "border-primary bg-primary/5",
                 )}
               >
@@ -623,7 +623,7 @@ function MobileRoundSection({
                     <label
                       key={`${round.id}-${player.id}-${field.id}`}
                       className={cn(
-                        "space-y-2 rounded-2xl border border-border bg-card p-3",
+                        "space-y-2 rounded-xl border border-border bg-card p-3",
                         field.kind === "penalty" && "col-span-2",
                       )}
                     >
@@ -683,7 +683,7 @@ function MobileCumulativeSection({
   leaderPlayerId,
 }: MobileCumulativeSectionProps) {
   return (
-    <section className="space-y-3 rounded-3xl bg-primary p-4 text-primary-foreground">
+    <section className="space-y-3 rounded-xl bg-primary p-3 text-primary-foreground">
       <div>
         <p className="font-semibold">Total cumule</p>
         <p className="text-xs text-primary-foreground/80">
@@ -703,7 +703,7 @@ function MobileCumulativeSection({
             <div
               key={`mobile-cumulative-${player.id}`}
               className={cn(
-                "flex items-center justify-between rounded-2xl bg-primary-foreground/10 px-4 py-3",
+                "flex items-center justify-between rounded-xl bg-primary-foreground/10 px-3 py-2.5",
                 isLeader && "bg-primary-foreground/20",
               )}
             >
@@ -768,7 +768,7 @@ function DesktopRoundSection({
                 size="sm"
                 onClick={() => onToggleCollapsed(round.id)}
               >
-                {isCollapsed ? "Deplier la manche" : "Replier la manche"}
+                {isCollapsed ? "Deplier" : "Replier"}
               </Button>
 
               <Button
@@ -777,7 +777,7 @@ function DesktopRoundSection({
                 onClick={() => onRemoveRound(round)}
                 disabled={isLocked || roundsCount === 1}
               >
-                Supprimer la manche
+                Supprimer
               </Button>
             </div>
           </div>

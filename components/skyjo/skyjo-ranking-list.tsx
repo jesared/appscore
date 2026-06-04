@@ -30,7 +30,7 @@ export function SkyjoRankingList({ rankingPlayers }: SkyjoRankingListProps) {
             Le classement apparaitra des que des joueurs seront ajoutes.
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {rankingPlayers.map((player) => {
               const isLeader = player.rank === 1;
               const podium = podiumByRank[player.rank];
@@ -39,12 +39,12 @@ export function SkyjoRankingList({ rankingPlayers }: SkyjoRankingListProps) {
                 <div
                   key={player.id}
                   className={cn(
-                    "flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-card-foreground sm:flex-row sm:items-center sm:justify-between",
+                    "flex flex-col gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-card-foreground sm:flex-row sm:items-center sm:justify-between",
                     isLeader && "border-primary bg-primary/10",
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-muted text-lg">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-muted text-lg">
                       {podium ?? (
                         <span className="text-sm font-semibold text-muted-foreground">
                           {player.rank}

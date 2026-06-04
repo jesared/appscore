@@ -91,8 +91,8 @@ function RoundMetaEditor({
   onChangeRoundNote: (roundId: string, note: string) => void;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
-      <label className="space-y-2">
+    <div className="grid gap-3 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
+      <label className="hidden space-y-2 sm:block">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Nom de manche
         </span>
@@ -116,7 +116,7 @@ function RoundMetaEditor({
           placeholder="Remarque, evenement ou rappel pour cette manche"
           aria-label={`Note de ${round.name}`}
           rows={2}
-          className="min-h-[84px] resize-none"
+          className="min-h-20 resize-none"
         />
       </label>
     </div>
@@ -146,14 +146,14 @@ function SkyjoRoundSection({
     : undefined;
 
   return (
-    <section className="space-y-4 rounded-3xl border border-border bg-background p-4">
+    <section className="space-y-3 rounded-xl border border-border bg-background p-3">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary-foreground">
+            <span className="rounded-xl bg-secondary px-2.5 py-1 text-[11px] font-semibold uppercase text-secondary-foreground">
               {round.name}
             </span>
-            <span className="rounded-full bg-accent px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent-foreground">
+            <span className="rounded-xl bg-accent px-2.5 py-1 text-[11px] font-semibold uppercase text-accent-foreground">
               {players.length} joueur{players.length > 1 ? "s" : ""}
             </span>
           </div>
@@ -168,7 +168,7 @@ function SkyjoRoundSection({
             size="sm"
             onClick={() => onToggleCollapsed(round.id)}
           >
-            {isCollapsed ? "Deplier la manche" : "Replier la manche"}
+            {isCollapsed ? "Deplier" : "Replier"}
           </Button>
           <Button
             variant="outline"
@@ -176,7 +176,7 @@ function SkyjoRoundSection({
             disabled={isLocked || roundsCount === 1}
             onClick={() => onRemoveRound(round)}
           >
-            Supprimer la manche
+            Supprimer
           </Button>
         </div>
       </div>
@@ -199,7 +199,7 @@ function SkyjoRoundSection({
               <div
                 key={player.id}
                 className={cn(
-                  "rounded-2xl border border-border bg-card px-4 py-3",
+                  "rounded-xl border border-border bg-card px-3 py-2.5",
                   isBest && "border-primary bg-primary/10",
                 )}
               >
@@ -224,7 +224,7 @@ function SkyjoRoundSection({
             <table className="min-w-full border-separate border-spacing-0">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 rounded-l-2xl border border-border bg-card px-4 py-3 text-left text-sm font-semibold text-foreground">
+                  <th className="sticky left-0 z-10 rounded-l-xl border border-border bg-card px-4 py-3 text-left text-sm font-semibold text-foreground">
                     Ligne
                   </th>
                   {players.map((player) => (
@@ -282,7 +282,7 @@ function SkyjoRoundSection({
                   })}
                 </tr>
                 <tr>
-                  <td className="sticky left-0 z-10 rounded-bl-2xl border-x border-b border-border bg-card px-4 py-3 text-sm font-semibold text-foreground">
+                  <td className="sticky left-0 z-10 rounded-bl-xl border-x border-b border-border bg-card px-4 py-3 text-sm font-semibold text-foreground">
                     Total manche
                   </td>
                   {players.map((player, index) => {
@@ -293,7 +293,7 @@ function SkyjoRoundSection({
                         key={player.id}
                         className={cn(
                           "border-r border-b border-border bg-card px-4 py-3 text-right text-sm font-semibold text-foreground",
-                          index === players.length - 1 && "rounded-br-2xl",
+                          index === players.length - 1 && "rounded-br-xl",
                           bestRoundTotal !== undefined &&
                             roundPoints === bestRoundTotal &&
                             "bg-primary/10",
@@ -318,7 +318,7 @@ function SkyjoRoundSection({
                 <div
                   key={player.id}
                   className={cn(
-                    "rounded-2xl border border-border bg-card p-4",
+                    "rounded-xl border border-border bg-card p-3",
                     isBest && "border-primary bg-primary/5",
                   )}
                 >
@@ -334,7 +334,7 @@ function SkyjoRoundSection({
                       </p>
                     </div>
                     {isBest ? (
-                      <span className="rounded-full bg-primary px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
+                      <span className="rounded-xl bg-primary px-2.5 py-1 text-[11px] font-semibold uppercase text-primary-foreground">
                         Meilleur score
                       </span>
                     ) : null}
@@ -447,13 +447,13 @@ export function SkyjoScoreTable({
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="gap-4 border-b border-border/70 bg-background/80">
+      <CardHeader className="gap-3 border-b border-border/70 bg-background/80">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-1">
-            <CardTitle className="font-display text-3xl md:text-4xl">
+            <CardTitle className="font-display text-xl sm:text-2xl">
               Feuille de score Skyjo
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="hidden sm:block">
               Une saisie simple par manche: chaque joueur note ses points, et
               le classement garde le plus petit total en tete.
             </CardDescription>
@@ -478,7 +478,7 @@ export function SkyjoScoreTable({
               <div
                 key={player.id}
                 className={cn(
-                  "rounded-2xl border border-border bg-card p-4 text-card-foreground",
+                  "rounded-xl border border-border bg-card p-3 text-card-foreground",
                   isLeader && "border-primary bg-primary/5",
                 )}
               >
@@ -495,7 +495,7 @@ export function SkyjoScoreTable({
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>Rang #{rankingPlayer?.rank ?? "-"}</span>
                       {isLeader ? (
-                        <span className="rounded-full bg-primary px-2 py-0.5 font-medium text-primary-foreground">
+                        <span className="rounded-xl bg-primary px-2 py-0.5 font-medium text-primary-foreground">
                           En tete
                         </span>
                       ) : null}
@@ -512,7 +512,7 @@ export function SkyjoScoreTable({
                   </Button>
                 </div>
 
-                <div className="mt-4 rounded-2xl bg-background px-4 py-3">
+                <div className="mt-3 rounded-xl bg-background px-3 py-2.5">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
                     Total cumule
                   </p>
@@ -526,7 +526,7 @@ export function SkyjoScoreTable({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6 pt-6">
+      <CardContent className="space-y-4 pt-4 sm:pt-5">
         {rounds.map((round) => (
           <SkyjoRoundSection
             key={round.id}

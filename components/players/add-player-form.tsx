@@ -36,12 +36,12 @@ export function AddPlayerForm({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle>Ajouter un joueur</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription className="hidden sm:block">{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="flex flex-col gap-3 sm:flex-row" onSubmit={handleSubmit}>
+        <form className="flex flex-col gap-2 sm:flex-row" onSubmit={handleSubmit}>
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -49,7 +49,11 @@ export function AddPlayerForm({
             aria-label="Nom du joueur"
             disabled={isDisabled}
           />
-          <Button type="submit" disabled={isDisabled || name.trim().length === 0}>
+          <Button
+            type="submit"
+            className="sm:w-auto"
+            disabled={isDisabled || name.trim().length === 0}
+          >
             Ajouter
           </Button>
         </form>

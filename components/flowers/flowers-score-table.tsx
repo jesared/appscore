@@ -115,12 +115,12 @@ function RoundMetaEditor({
   onChangeRoundName: (roundId: string, name: string) => void;
   onChangeRoundNote: (roundId: string, note: string) => void;
 }) {
+  const shouldShowNote = !isLocked || Boolean(round.note?.trim());
+
   return (
-    <div className="grid gap-3 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
-      <label className="hidden space-y-2 sm:block">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Nom de manche
-        </span>
+    <div className="grid gap-2 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:items-start">
+      <label className="space-y-1">
+        <span className="sr-only">Nom de manche</span>
         <Input
           value={round.name}
           onChange={(event) => onChangeRoundName(round.id, event.target.value)}
@@ -130,20 +130,25 @@ function RoundMetaEditor({
         />
       </label>
 
-      <label className="space-y-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Note de manche
-        </span>
-        <Textarea
-          value={round.note ?? ""}
-          onChange={(event) => onChangeRoundNote(round.id, event.target.value)}
-          disabled={isLocked}
-          placeholder="Theme, evenement, rappel ou remarque de cette manche"
-          aria-label={`Note de ${round.name}`}
-          rows={2}
-          className="min-h-20 resize-none"
-        />
-      </label>
+      {shouldShowNote ? (
+        <details
+          className="group rounded-xl border border-border bg-background px-3 py-2"
+          open={Boolean(round.note?.trim())}
+        >
+          <summary className="cursor-pointer text-sm font-medium text-foreground marker:text-muted-foreground">
+            Note
+          </summary>
+          <Textarea
+            value={round.note ?? ""}
+            onChange={(event) => onChangeRoundNote(round.id, event.target.value)}
+            disabled={isLocked}
+            placeholder="Theme, evenement, rappel ou remarque"
+            aria-label={`Note de ${round.name}`}
+            rows={2}
+            className="mt-2 min-h-16 resize-none border-0 bg-muted/40 shadow-none focus-visible:ring-1"
+          />
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -243,11 +248,10 @@ export function FlowersScoreTable({
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-1">
             <CardTitle className="font-display text-xl sm:text-2xl">
-              Feuille de marque Flowers
+              Scores
             </CardTitle>
-            <CardDescription className="hidden sm:block">
-              Les joueurs sont en colonnes. Chaque manche garde ses scores, son
-              total et alimente le cumul final.
+            <CardDescription>
+              Saisie par manche, totaux et cumul final.
             </CardDescription>
             {isLocked ? (
               <p className="text-sm font-medium text-primary">
@@ -257,7 +261,7 @@ export function FlowersScoreTable({
           </div>
 
           <Button className="w-full md:w-auto" onClick={onAddRound} disabled={isLocked}>
-            Ajouter une manche
+            + Manche
           </Button>
         </div>
       </CardHeader>
@@ -442,10 +446,6 @@ function MobilePlayersSection({
     <section className="space-y-3">
       <div className="space-y-1">
         <p className="text-sm font-semibold text-foreground">Joueurs</p>
-        <p className="hidden text-xs text-muted-foreground sm:block">
-          Renomme les joueurs et retrouve leur cumul sans scroller
-          horizontalement.
-        </p>
       </div>
 
       <div className="space-y-3">
@@ -528,11 +528,6 @@ function MobileRoundSection({
             onChangeRoundName={onChangeRoundName}
             onChangeRoundNote={onChangeRoundNote}
           />
-          <p className="text-xs text-muted-foreground">
-            {isCollapsed
-              ? "Manche repliee. Les totaux restent visibles."
-              : "Saisie rapide de la manche pour chaque joueur."}
-          </p>
         </div>
 
         <div className="flex flex-col gap-2 sm:w-auto sm:items-end">
@@ -755,11 +750,6 @@ function DesktopRoundSection({
                 onChangeRoundName={onChangeRoundName}
                 onChangeRoundNote={onChangeRoundNote}
               />
-              <p className="text-xs text-muted-foreground">
-                {isCollapsed
-                  ? "Manche repliee. Les totaux restent visibles."
-                  : "Saisie de la manche, avec total calcule en direct."}
-              </p>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
